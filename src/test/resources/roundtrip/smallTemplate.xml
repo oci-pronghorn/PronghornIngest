@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xmlns="http://www.fixprotocol.org/ns/fast/td/1.1">
+<template name="208" id="208" xmlns="http://www.fixprotocol.org/ns/fast/td/1.1">
+    <string name="4" id="4" >
+    </string>
+    <string name="84" id="84" presence="optional">
+    </string>
+    <string name="103" id="103" presence="optional">
+    </string>
+    <decimal name="118" id="118" presence="optional">
+        <exponent>
+            <default value="2"/>
+        </exponent>
+        <mantissa>
+
+        </mantissa>
+    </decimal>
+    <decimal name="134" id="134" presence="optional">
+        <exponent>
+            <default value="2"/>
+        </exponent>
+        <mantissa>
+
+        </mantissa>
+    </decimal>
+    <decimal name="150" id="150" presence="optional">
+        <exponent>
+            <default value="2"/>
+        </exponent>
+        <mantissa>
+
+        </mantissa>
+    </decimal>
+    <decimal name="166" id="166" presence="optional">
+        <exponent>
+            <default value="2"/>
+        </exponent>
+        <mantissa>
+
+        </mantissa>
+    </decimal>
+    <uInt64 name="178" id="178" presence="optional">
+    </uInt64>
+</template>
+<template name="64" id="64" xmlns="http://www.fixprotocol.org/ns/fast/td/1.1">
+    <uInt32 name="0" id="0" >
+        <increment/>
+    </uInt32>
+    <uInt32 name="16" id="16" >
+        <copy/>
+    </uInt32>
+    <uInt32 name="32" id="32" >
+         <copy/>
+    </uInt32>
+    <uInt32 name="48" id="48" >
+         <increment/>
+    </uInt32>
+</template>
+</templates>
