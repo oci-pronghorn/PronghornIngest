@@ -5,17 +5,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.stream.RingStreams;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.stream.RingStreams;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
 public class FileWriteStage extends PronghornStage {//Moved to meta.
 
-	final RingBuffer input;
+	final Pipe input;
 	final File target;
 	
-	public FileWriteStage(GraphManager gm, RingBuffer input, File target) {
+	public FileWriteStage(GraphManager gm, Pipe input, File target) {
 		super(gm, input, NONE);
 		this.input = input;
 		this.target = target;

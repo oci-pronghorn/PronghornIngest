@@ -1,14 +1,14 @@
 package com.ociweb.pronghorn.components.ingestion.dynamic.stage;
 
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.stream.RingInputStream;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.stream.RingInputStream;
 
 /**Only needed for new dynmaic ingest behavior, THIS IS NOT THE NORMAL CASE BUT WILL BE REQUIRED FOR FULL FLEXIBILITY */
 public class TemplateLoaderStage {
 	RingInputStream input;
 	
 	/** Given an input ring with Catalog Template XML produce a TemplateCatalog object ??*/
-	TemplateLoaderStage(RingBuffer input) {
+	TemplateLoaderStage(Pipe input) {
 		this.input = new RingInputStream(input);
 	}
 	

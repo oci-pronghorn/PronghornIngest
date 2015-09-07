@@ -34,13 +34,13 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.stage.MessageGeneratorS
 import com.ociweb.pronghorn.components.ingestion.dynamic.stage.TemplateGeneratorStage;
 import com.ociweb.pronghorn.components.ingestion.file.FileWriteStage;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingBufferConfig;
-import com.ociweb.pronghorn.ring.RingBuffers;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.token.TokenBuilder;
-import com.ociweb.pronghorn.ring.token.TypeMask;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeConfig;
+import com.ociweb.pronghorn.pipe.PipeBundle;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.token.TokenBuilder;
+import com.ociweb.pronghorn.pipe.token.TypeMask;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.monitor.MonitorConsoleStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
@@ -69,9 +69,9 @@ public class IngestUtil {
 	private static final String VALUE_DECODE = "decode";
     private static Logger log = LoggerFactory.getLogger(IngestUtil.class);
 	
-	private static RingBufferConfig linesRingConfig = new RingBufferConfig((byte)12,(byte)21,null, FieldReferenceOffsetManager.RAW_BYTES);
-	private static RingBufferConfig fieldsRingConfig = new RingBufferConfig((byte)10,(byte)19,null,  MetaMessageDefs.FROM);
-	private static RingBufferConfig flatFileRingConfig = new RingBufferConfig(FieldReferenceOffsetManager.RAW_BYTES, 1000, 4096);
+	private static PipeConfig linesRingConfig = new PipeConfig((byte)12,(byte)21,null, FieldReferenceOffsetManager.RAW_BYTES);
+	private static PipeConfig fieldsRingConfig = new PipeConfig((byte)10,(byte)19,null,  MetaMessageDefs.FROM);
+	private static PipeConfig flatFileRingConfig = new PipeConfig(FieldReferenceOffsetManager.RAW_BYTES, 1000, 4096);
 	
 	
     public static void main(String[] args) {        
@@ -232,13 +232,13 @@ public class IngestUtil {
 		 TemplateCatalogConfig catalog = new TemplateCatalogConfig(catBytes);
 		 FieldReferenceOffsetManager customFrom = catalog.getFROM();
 		 
-		 RingBufferConfig fastBytesRingConfig = new RingBufferConfig((byte)4,(byte)20,null, FieldReferenceOffsetManager.RAW_BYTES);
-		 RingBufferConfig customRingConfig = new RingBufferConfig((byte)16,(byte)25,null, customFrom);
-		 RingBufferConfig csvFileRingConfig = new RingBufferConfig((byte)16,(byte)25,null, FieldReferenceOffsetManager.RAW_BYTES);
+		 PipeConfig fastBytesRingConfig = new PipeConfig((byte)4,(byte)20,null, FieldReferenceOffsetManager.RAW_BYTES);
+		 PipeConfig customRingConfig = new PipeConfig((byte)16,(byte)25,null, customFrom);
+		 PipeConfig csvFileRingConfig = new PipeConfig((byte)16,(byte)25,null, FieldReferenceOffsetManager.RAW_BYTES);
 		 		
-		 RingBuffer fastBytesRing = new RingBuffer(fastBytesRingConfig);
-		 RingBuffer customRing = new RingBuffer(customRingConfig);
-		 RingBuffer csvFileRing = new RingBuffer(csvFileRingConfig);
+		 Pipe fastBytesRing = new Pipe(fastBytesRingConfig);
+		 Pipe customRing = new Pipe(customRingConfig);
+		 Pipe csvFileRing = new Pipe(csvFileRingConfig);
 		 
 		 GraphManager gm = new GraphManager();
 		 
@@ -276,7 +276,7 @@ public class IngestUtil {
 		final AtomicInteger msgs = new AtomicInteger();		
 		FASTClassLoader.deleteFiles();
 
-        RingBuffers buildRingBuffers = TemplateCatalogConfig.buildRingBuffers(new TemplateCatalogConfig(catBytes), (byte)10, (byte)24);
+        PipeBundle buildRingBuffers = TemplateCatalogConfig.buildRingBuffers(new TemplateCatalogConfig(catBytes), (byte)10, (byte)24);
 		FASTReaderReactor reactor = FAST.inputReactorDebug(65536, fastInput, catBytes, buildRingBuffers); 
 
         int or=0;
@@ -296,13 +296,13 @@ public class IngestUtil {
         while (FASTReaderReactor.pump(reactor)>=0) { 
         	int k = reactor.ringBuffers().length;
         	while (--k>=0) {
-        	    RingBuffer rb = reactor.ringBuffers()[k];
+        	    Pipe rb = reactor.ringBuffers()[k];
         	    
         	    //if this ring buffer has a message consume it
-        		if (RingReader.tryReadFragment(rb)) {
-	        		if (RingReader.isNewMessage(rb)) {
-	        			int fragStart = RingReader.getMsgIdx(rb);
-	        			FieldReferenceOffsetManager from = RingBuffer.from(rb);
+        		if (PipeReader.tryReadFragment(rb)) {
+	        		if (PipeReader.isNewMessage(rb)) {
+	        			int fragStart = PipeReader.getMsgIdx(rb);
+	        			FieldReferenceOffsetManager from = Pipe.from(rb);
 	        				        			
 						//System.err.println("msg Idx:"+fragStart+" "+from.fragDataSize[fragStart]+"  "+from.fieldNameScript[fragStart]+"  "+  TokenBuilder.tokenToString(from.tokens[fragStart]));
 	        			
@@ -314,43 +314,43 @@ public class IngestUtil {
 							int j = fragStart+i++;
 							builder.append("  "+TokenBuilder.tokenToString(from.tokens[j])+"  '"+from.fieldNameScript[j]+"'" );
 							//using the name look up the field locator
-							int fieldLoc = FieldReferenceOffsetManager.lookupFieldLocator(from.fieldNameScript[j],fragStart,RingBuffer.from(rb));
+							int fieldLoc = FieldReferenceOffsetManager.lookupFieldLocator(from.fieldNameScript[j],fragStart,Pipe.from(rb));
 							
 							switch (TokenBuilder.extractType(from.tokens[j])) {
 								case TypeMask.IntegerSigned:
 								case TypeMask.IntegerUnsigned:
 								case TypeMask.IntegerSignedOptional:
 								case TypeMask.IntegerUnsignedOptional:
-									builder.append("  int:"+RingReader.readInt(rb, fieldLoc));
+									builder.append("  int:"+PipeReader.readInt(rb, fieldLoc));
 								break;
 								case TypeMask.LongSigned:
 								case TypeMask.LongUnsigned:
 								case TypeMask.LongSignedOptional:
 								case TypeMask.LongUnsignedOptional:
-									builder.append("  long:"+RingReader.readLong(rb, fieldLoc));
+									builder.append("  long:"+PipeReader.readLong(rb, fieldLoc));
 								break;
 								case TypeMask.Decimal:
 								case TypeMask.DecimalOptional:
 									
-									int exp = RingReader.readDecimalExponent(rb, fieldLoc);
-									long mant = RingReader.readDecimalMantissa(rb, fieldLoc);
+									int exp = PipeReader.readDecimalExponent(rb, fieldLoc);
+									long mant = PipeReader.readDecimalMantissa(rb, fieldLoc);
 																		
-									double decimald = RingReader.readDouble(rb, fieldLoc);
-									float decimalf = RingReader.readFloat(rb, fieldLoc);
+									double decimald = PipeReader.readDouble(rb, fieldLoc);
+									float decimalf = PipeReader.readFloat(rb, fieldLoc);
 									
 									builder.append("  decimalD:"+decimald+"  decimalF:"+decimalf+"  decimal ex:"+exp+"  decimal mant:"+mant);
 									i++;//add 1 extra because decimal takes up 2 slots in the script
 								break;	
 								case TypeMask.TextASCII:
 								case TypeMask.TextASCIIOptional:
-									int lenASCII = RingReader.readBytesLength(rb, fieldLoc);
+									int lenASCII = PipeReader.readBytesLength(rb, fieldLoc);
 									
-									builder.append(" len:"+lenASCII+"  ASCII:"+RingReader.readASCII(rb, fieldLoc, new StringBuilder()));
+									builder.append(" len:"+lenASCII+"  ASCII:"+PipeReader.readASCII(rb, fieldLoc, new StringBuilder()));
 								break;
 								case TypeMask.TextUTF8:
 								case TypeMask.TextUTF8Optional:
-									int lenUTF8 = RingReader.readBytesLength(rb, fieldLoc);
-									int posUFT8 = RingReader.readBytesPosition(rb, fieldLoc);
+									int lenUTF8 = PipeReader.readBytesLength(rb, fieldLoc);
+									int posUFT8 = PipeReader.readBytesPosition(rb, fieldLoc);
 									
 									builder.append(" pos:"+posUFT8+" len:"+lenUTF8+"  "+Integer.toBinaryString(lenUTF8));//+"  UTF8:"+RingReader.readUTF8(rb, fieldLoc, new StringBuilder()));
 								break;
@@ -368,7 +368,7 @@ public class IngestUtil {
         }
         } finally {
         	System.out.println("total messages:"+msgs+" last "+or+","+yr+","+mo+","+dy+"   vol:"+vol+"   "+new String(sym,0,symLen)+" "+new String(comp,0,compLen));
-        	RingBuffer rb = reactor.ringBuffers()[0];
+        	Pipe rb = reactor.ringBuffers()[0];
         	System.err.println(rb);
        
         }
@@ -394,7 +394,7 @@ public class IngestUtil {
 		 
 		 try {
 
-			 RingBufferConfig customRingConfig = new RingBufferConfig(customFrom, 20, 64);
+			 PipeConfig customRingConfig = new PipeConfig(customFrom, 20, 64);
 			 
 			 //input test data		
 			FileChannel fileChannel = new RandomAccessFile(csvFile, "r").getChannel();     
@@ -403,15 +403,15 @@ public class IngestUtil {
 			GraphManager gm = new GraphManager();
 			
 			//build all the stages
-			LineSplitterByteBufferStage lineSplitter =  new LineSplitterFileChannelStage(gm,fileChannel,new RingBuffer(linesRingConfig));
-			FieldSplitterStage fieldSplitter = new FieldSplitterStage(gm,GraphManager.getOutputPipe(gm, lineSplitter, 1), new RingBuffer(fieldsRingConfig));			
-			MessageGeneratorStage generatorStage = new MessageGeneratorStage(gm, GraphManager.getOutputPipe(gm, fieldSplitter, 1), new RingBuffer(customRingConfig));
+			LineSplitterByteBufferStage lineSplitter =  new LineSplitterFileChannelStage(gm,fileChannel,new Pipe(linesRingConfig));
+			FieldSplitterStage fieldSplitter = new FieldSplitterStage(gm,GraphManager.getOutputPipe(gm, lineSplitter, 1), new Pipe(fieldsRingConfig));			
+			MessageGeneratorStage generatorStage = new MessageGeneratorStage(gm, GraphManager.getOutputPipe(gm, fieldSplitter, 1), new Pipe(customRingConfig));
 			
 			//ConsoleStage cs = new ConsoleStage(gm,GraphManager.getOutputRing(gm, generatorStage, 1));
 			
 			//ConsoleDataDumpStage ex = new ConsoleDataDumpStage(gm, GraphManager.getOutputRing(gm, generatorStage, 1),42);
 			
-			FASTEncodeStage encodeStage = new FASTEncodeStage(gm, GraphManager.getOutputPipe(gm, generatorStage, 1), new CatByteConstantProvider(catBytes), new RingBuffer(flatFileRingConfig));
+			FASTEncodeStage encodeStage = new FASTEncodeStage(gm, GraphManager.getOutputPipe(gm, generatorStage, 1), new CatByteConstantProvider(catBytes), new Pipe(flatFileRingConfig));
 			FileWriteStage fileWriter = new FileWriteStage(gm, GraphManager.getOutputPipe(gm, encodeStage, 1),new File(fastFilePath));
 			
 			//put the stages into the executors
@@ -478,9 +478,9 @@ public class IngestUtil {
 				 try {										
 						
 					//build all the ring buffers
-					RingBuffer linesRing = new RingBuffer(linesRingConfig);
-					RingBuffer fieldsRing = new RingBuffer(fieldsRingConfig);
-					RingBuffer flatFileRing = new RingBuffer(flatFileRingConfig);				
+					Pipe linesRing = new Pipe(linesRingConfig);
+					Pipe fieldsRing = new Pipe(fieldsRingConfig);
+					Pipe flatFileRing = new Pipe(flatFileRingConfig);				
 			
 										
 					GraphManager gm = new GraphManager();
@@ -549,43 +549,7 @@ public class IngestUtil {
         return System.getProperty(key,def);
     }
     
-//	private static Runnable dumpStage(final RingBuffer inputRing,final AtomicLong count) {
-//		
-//		return new Runnable() {
-//
-//			
-//            @Override
-//            public void run() {           	
-//    	           	
-//            	           	
-//                    long messageCount = 0;
-//                    long bytes =0;
-//                    while (true) {
-//                        
-//                    	int iter = RingBuffer.contentRemaining(inputRing)>>1;
-//	    				while (--iter>=0) {
-//	                    	int meta = takeRingByteMetaData(inputRing);//side effect, this moves the pointer.
-//	                    	int len = takeRingByteLen(inputRing);
-//	                    	
-//	                    	//doing nothing with the data
-//	                    	releaseReadLock(inputRing);
-//	                    	
-//	
-//	                    	if (len<0) {
-//	                    		count.set(bytes);
-//	                    		System.out.println("exited after reading: Msg:" + messageCount+" Bytes:"+count);
-//	                    		return;
-//	                    	} 
-//	                    	bytes+=len;
-//	                    	messageCount++;
-//	                    	
-//                    	} 
-//                        Thread.yield();
-//                    }   
-//                    
-//            }                
-//        };
-//	}
+
     
     
 }

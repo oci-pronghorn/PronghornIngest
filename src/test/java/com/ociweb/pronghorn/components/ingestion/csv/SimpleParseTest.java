@@ -1,7 +1,7 @@
 package com.ociweb.pronghorn.components.ingestion.csv;
 
-import static com.ociweb.pronghorn.ring.FieldReferenceOffsetManager.lookupFieldLocator;
-import static com.ociweb.pronghorn.ring.FieldReferenceOffsetManager.lookupTemplateLocator;
+import static com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager.lookupFieldLocator;
+import static com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager.lookupTemplateLocator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -28,12 +28,12 @@ import com.ociweb.jfast.catalog.loader.TemplateLoader;
 import com.ociweb.pronghorn.components.ingestion.dynamic.stage.TemplateGeneratorStage;
 import com.ociweb.pronghorn.components.ingestion.file.FileWriteStage;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingBufferConfig;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.stream.ByteVisitor;
-import com.ociweb.pronghorn.ring.stream.RingStreams;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeConfig;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.stream.ByteVisitor;
+import com.ociweb.pronghorn.pipe.stream.RingStreams;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 import com.ociweb.pronghorn.stage.scheduling.StageScheduler;
 import com.ociweb.pronghorn.stage.scheduling.ThreadPerStageScheduler;
@@ -47,9 +47,9 @@ public class SimpleParseTest {
 	
 	
 	static ByteBuffer sourceBuffer;
-	static RingBufferConfig linesRingConfig;
-	static RingBufferConfig fieldsRingConfig;
-	static RingBufferConfig flatFileRingConfig;
+	static PipeConfig linesRingConfig;
+	static PipeConfig fieldsRingConfig;
+	static PipeConfig flatFileRingConfig;
 	
 	final int MSG_DOUBLE_LOC = lookupTemplateLocator("Decimal",  MetaMessageDefs.FROM);  
 	final int DOUBLE_VALUE_LOC = lookupFieldLocator("Value", MSG_DOUBLE_LOC,   MetaMessageDefs.FROM);
@@ -99,9 +99,9 @@ public class SimpleParseTest {
 	    
 	    sourceBuffer = ByteBuffer.wrap(baos.toByteArray());
 				
-	    linesRingConfig = new RingBufferConfig((byte)20,(byte)26,null, FieldReferenceOffsetManager.RAW_BYTES);
-	    fieldsRingConfig = new RingBufferConfig((byte)20,(byte)28,null,  MetaMessageDefs.FROM);
-	    flatFileRingConfig = new RingBufferConfig((byte)20,(byte)28,null, FieldReferenceOffsetManager.RAW_BYTES);
+	    linesRingConfig = new PipeConfig((byte)20,(byte)26,null, FieldReferenceOffsetManager.RAW_BYTES);
+	    fieldsRingConfig = new PipeConfig((byte)20,(byte)28,null,  MetaMessageDefs.FROM);
+	    flatFileRingConfig = new PipeConfig((byte)20,(byte)28,null, FieldReferenceOffsetManager.RAW_BYTES);
 	    
 	}
 	
@@ -117,7 +117,7 @@ public class SimpleParseTest {
 	@Test
 	public void testLineReader() {
 		ByteBuffer data = sourceBuffer.asReadOnlyBuffer();				
-		RingBuffer linesRing = new RingBuffer(linesRingConfig);
+		Pipe linesRing = new Pipe(linesRingConfig);
 		linesRing.initBuffers();
 		
 		//start near the end to force the rollover to happen.
@@ -158,9 +158,9 @@ public class SimpleParseTest {
 			data.limit(dataSize);
 			GraphManager gm = new GraphManager();
 			
-			RingBufferConfig linesRingConfigLocal = new RingBufferConfig((byte)t,(byte)20,null, FieldReferenceOffsetManager.RAW_BYTES);	
+			PipeConfig linesRingConfigLocal = new PipeConfig((byte)t,(byte)20,null, FieldReferenceOffsetManager.RAW_BYTES);	
 			
-			final RingBuffer linesRing = new RingBuffer(linesRingConfigLocal);		
+			final Pipe linesRing = new Pipe(linesRingConfigLocal);		
 			LineSplitterByteBufferStage lineSplitter = new LineSplitterByteBufferStage(gm, data, linesRing);
 			
 			baos.reset();
@@ -309,8 +309,8 @@ public class SimpleParseTest {
 	@Test
 	public void testFieldReader() {
 		ByteBuffer data = sourceBuffer.asReadOnlyBuffer();				
-		RingBuffer linesRing = new RingBuffer(linesRingConfig);
-		RingBuffer fieldsRing = new RingBuffer(fieldsRingConfig);
+		Pipe linesRing = new Pipe(linesRingConfig);
+		Pipe fieldsRing = new Pipe(fieldsRingConfig);
 		linesRing.initBuffers();
 		fieldsRing.initBuffers();
 		
@@ -343,10 +343,10 @@ public class SimpleParseTest {
 		int i32 = 0;
 		int i64 = 0; 
 				
-		while (RingReader.tryReadFragment(fieldsRing)) {
-	        	assertTrue(RingReader.isNewMessage(fieldsRing));
+		while (PipeReader.tryReadFragment(fieldsRing)) {
+	        	assertTrue(PipeReader.isNewMessage(fieldsRing));
 	        	
-	        	int msgLoc = RingReader.getMsgIdx(fieldsRing);
+	        	int msgLoc = PipeReader.getMsgIdx(fieldsRing);
 	        	
 	        	String name = MetaMessageDefs.FROM.fieldNameScript[msgLoc];
 	        	int templateId = (int) MetaMessageDefs.FROM.fieldIdScript[msgLoc];
@@ -361,27 +361,27 @@ public class SimpleParseTest {
 	        			countFlush++;
 	        	    break;
 	        		case 128: //UInt32	        	
-	        			int iValue = RingReader.readInt(fieldsRing, UINT32_VALUE_LOC);
+	        			int iValue = PipeReader.readInt(fieldsRing, UINT32_VALUE_LOC);
 	        			if (fileSpecificTestValues) assertEquals(expectedInt[i32++],iValue);
 	        	    break;
 	        		case 130: //Int32	        	
-	        			int isValue = RingReader.readInt(fieldsRing, INT32_VALUE_LOC);
+	        			int isValue = PipeReader.readInt(fieldsRing, INT32_VALUE_LOC);
 	        			if (fileSpecificTestValues) assertEquals(expectedInt[i32++],isValue);
 	        	    break;
 	        		case 132: //UInt64
-	        			long lValue = RingReader.readLong(fieldsRing, UINT64_VALUE_LOC);
+	        			long lValue = PipeReader.readLong(fieldsRing, UINT64_VALUE_LOC);
 	        			if (fileSpecificTestValues) assertEquals(expectedLong[i64++],lValue);	        			
 	        			break;
 	        		case 134: //Int64
-	        			long lsValue = RingReader.readLong(fieldsRing, INT64_VALUE_LOC);
+	        			long lsValue = PipeReader.readLong(fieldsRing, INT64_VALUE_LOC);
 	        			if (fileSpecificTestValues) assertEquals(expectedLong[i64++],lsValue);	
 	        			break;
 	        		case 140: //Decimal
-	        			int exp = RingReader.readDecimalExponent(fieldsRing, DOUBLE_VALUE_LOC);
+	        			int exp = PipeReader.readDecimalExponent(fieldsRing, DOUBLE_VALUE_LOC);
 	        			assertEquals("Test file only uses 2 places of accuracy",2,exp);
 	        			
-	        			long mant = RingReader.readDecimalMantissa(fieldsRing, DOUBLE_VALUE_LOC);	        			
-	        			float value = RingReader.readFloat(fieldsRing, DOUBLE_VALUE_LOC);
+	        			long mant = PipeReader.readDecimalMantissa(fieldsRing, DOUBLE_VALUE_LOC);	        			
+	        			float value = PipeReader.readFloat(fieldsRing, DOUBLE_VALUE_LOC);
 	        			long expectedValue = (long)(Math.rint(value*100d));
 	        			assertEquals("decimal and float versions of this field should be 'near' each other",expectedValue,mant);
 	        	    break;
@@ -389,7 +389,7 @@ public class SimpleParseTest {
 	        			if (accumText.length()>0) {
 	        				accumText.append(',');
 	        			}
-	        			RingReader.readASCII(fieldsRing, ASCII_VALUE_LOC, accumText);
+	        			PipeReader.readASCII(fieldsRing, ASCII_VALUE_LOC, accumText);
 	        		
 		            break;
 	        		case 164: //Null
@@ -420,9 +420,9 @@ public class SimpleParseTest {
 	@Test
 	public void testIngestTemplate() {
 		ByteBuffer data = sourceBuffer.asReadOnlyBuffer();				
-		RingBuffer linesRing = new RingBuffer(linesRingConfig);
-		RingBuffer fieldsRing = new RingBuffer(fieldsRingConfig);
-		RingBuffer flatFileRing = new RingBuffer(flatFileRingConfig);
+		Pipe linesRing = new Pipe(linesRingConfig);
+		Pipe fieldsRing = new Pipe(fieldsRingConfig);
+		Pipe flatFileRing = new Pipe(flatFileRingConfig);
 		
 		linesRing.initBuffers();
 		fieldsRing.initBuffers();
@@ -498,9 +498,9 @@ public class SimpleParseTest {
 		ByteBuffer data = sourceBuffer.asReadOnlyBuffer();				
 
 		//build all the ring buffers
-		RingBuffer linesRing = new RingBuffer(linesRingConfig);
-		RingBuffer fieldsRing = new RingBuffer(fieldsRingConfig);
-		RingBuffer flatFileRing = new RingBuffer(flatFileRingConfig);
+		Pipe linesRing = new Pipe(linesRingConfig);
+		Pipe fieldsRing = new Pipe(fieldsRingConfig);
+		Pipe flatFileRing = new Pipe(flatFileRingConfig);
 		
 		GraphManager gm = new GraphManager();
 		

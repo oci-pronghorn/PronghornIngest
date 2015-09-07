@@ -1,12 +1,12 @@
 package com.ociweb.pronghorn.components.ingestion.file;
 
-import static com.ociweb.pronghorn.ring.RingBuffer.spinBlockOnTail;
-import static com.ociweb.pronghorn.ring.RingBuffer.tailPosition;
+import static com.ociweb.pronghorn.pipe.Pipe.spinBlockOnTail;
+import static com.ociweb.pronghorn.pipe.Pipe.tailPosition;
 
 import java.nio.ByteBuffer;
 
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
 
 /**
  * 
@@ -19,7 +19,7 @@ public class ReadByteBufferStage implements Runnable {
 
 	public final ByteBuffer activeByteBuffer;
 	
-	public final RingBuffer outputRing;
+	public final Pipe outputRing;
 	
 	public int recordStart = 0;
 	
@@ -31,12 +31,12 @@ public class ReadByteBufferStage implements Runnable {
     public final int publishCountDownInit;
     public int publishCountDown;
     
-    public ReadByteBufferStage(ByteBuffer sourceByteBuffer, RingBuffer outputRing) {
+    public ReadByteBufferStage(ByteBuffer sourceByteBuffer, Pipe outputRing) {
     	this.activeByteBuffer=sourceByteBuffer;
     	
     	this.outputRing=outputRing;
     	
-		if (RingBuffer.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
+		if (Pipe.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
 			throw new UnsupportedOperationException("This class can only be used with the very simple RAW_BYTES catalog of messages.");
 		}
 		
@@ -68,7 +68,7 @@ public class ReadByteBufferStage implements Runnable {
 			postProcessing(this, position);
 		} catch (Exception e) {
 			e.printStackTrace();
-			RingBuffer.shutdown(outputRing);
+			Pipe.shutdown(outputRing);
 		}
 	}
 
@@ -84,11 +84,11 @@ public class ReadByteBufferStage implements Runnable {
 		lss.tailPosCache = spinBlockOnTail(lss.tailPosCache, lss.targetValue, lss.outputRing);
 		lss.targetValue+=lss.stepSize;
 
-		RingBuffer outputRing = lss.outputRing;
+		Pipe outputRing = lss.outputRing;
 		//send end of file message
-		RingBuffer.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing).value++, -1);
-		RingBuffer.addNullByteArray(outputRing);
-		RingBuffer.publishWrites(outputRing);
+		Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, -1);
+		Pipe.addNullByteArray(outputRing);
+		Pipe.publishWrites(outputRing);
 		
         //	    System.err.println("finished reading file "+recordCount);
 	}
@@ -108,22 +108,22 @@ public class ReadByteBufferStage implements Runnable {
 						//The copy is an intrinsic and short copies are not as efficient
 						
 						sourceByteBuffer.position(lss.recordStart);
-						RingBuffer outputRing = lss.outputRing;
+						Pipe outputRing = lss.outputRing;
 						//before write make sure the tail is moved ahead so we have room to write
 						lss.tailPosCache = spinBlockOnTail(lss.tailPosCache, lss.targetValue, outputRing);
 						lss.targetValue+=lss.stepSize;
 						
-						RingBuffer.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing).value++, 0);
+						Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, 0);
 						assert(len>=0);
-						int bytePos = RingBuffer.bytesWorkingHeadPosition(outputRing);
+						int bytePos = Pipe.bytesWorkingHeadPosition(outputRing);
 						
-						RingBuffer.copyByteBuffer(sourceByteBuffer, len, outputRing);
-						RingBuffer.addBytePosAndLen(outputRing, bytePos, len);
+						Pipe.copyByteBuffer(sourceByteBuffer, len, outputRing);
+						Pipe.addBytePosAndLen(outputRing, bytePos, len);
 						
 						lss.recordCount++;
 						
 						if (--lss.publishCountDown<=0) {
-							RingBuffer.publishWrites(outputRing);
+							Pipe.publishWrites(outputRing);
 							lss.publishCountDown = lss.publishCountDownInit;
 						}
 						

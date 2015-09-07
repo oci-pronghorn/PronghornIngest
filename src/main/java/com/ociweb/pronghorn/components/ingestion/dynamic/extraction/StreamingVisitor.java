@@ -1,7 +1,7 @@
 package com.ociweb.pronghorn.components.ingestion.dynamic.extraction;
 
-import static com.ociweb.pronghorn.ring.RingBuffer.headPosition;
-import static com.ociweb.pronghorn.ring.RingBuffer.tailPosition;
+import static com.ociweb.pronghorn.pipe.Pipe.headPosition;
+import static com.ociweb.pronghorn.pipe.Pipe.tailPosition;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,9 +11,9 @@ import java.util.Arrays;
 
 import com.ociweb.jfast.catalog.loader.TemplateCatalogConfig;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.BloomCounter;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingBufferConfig;
-import com.ociweb.pronghorn.ring.util.hash.LongHashTable;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeConfig;
+import com.ociweb.pronghorn.pipe.util.hash.LongHashTable;
 
 @Deprecated
 public class StreamingVisitor implements ExtractionVisitor {
@@ -47,7 +47,7 @@ public class StreamingVisitor implements ExtractionVisitor {
     int bytePosActive;
     int bytePosStartField;
     
-    private RingBuffer ringBuffer;   
+    private Pipe ringBuffer;   
     private int fill;
 	private long tailPosCache;
     
@@ -57,7 +57,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 	private TypeExtractor typeExtractor;
         
     
-    public StreamingVisitor(RecordFieldExtractor messageTypes, LongHashTable templateIdStart, RingBuffer ringBuffer, TypeExtractor typeExtractor) {
+    public StreamingVisitor(RecordFieldExtractor messageTypes, LongHashTable templateIdStart, Pipe ringBuffer, TypeExtractor typeExtractor) {
     	 	    	
     	//initial ring buffer needed only for the first catalog then we move on from this one.
     	byte[] catBytes = messageTypes.getCatBytes();
@@ -144,7 +144,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 	    	try {
 	    		int msgIdx = messageTypes.messageIdx(messageTemplateIdHash);
 	    		
-	    		RingBuffer.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, offestForTemplateId, msgIdx);
+	    		Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, offestForTemplateId, msgIdx);
 	    	} catch (Throwable t) {
 	    		System.err.println(lastClosedLine);
 	    		t.printStackTrace();
@@ -157,9 +157,9 @@ public class StreamingVisitor implements ExtractionVisitor {
 		RecordFieldExtractor.resetToRecordStart(messageTypes);
                 
         //move the pointer up to the next record
-		RingBuffer.setBytesWorkingHead(ringBuffer, bytePosStartField = bytePosActive);
+		Pipe.setBytesWorkingHead(ringBuffer, bytePosStartField = bytePosActive);
 
-        RingBuffer.publishWrites(ringBuffer);
+        Pipe.publishWrites(ringBuffer);
         startingMessage = true;  
         
         messageTypes.totalRecords++;
@@ -170,11 +170,11 @@ public class StreamingVisitor implements ExtractionVisitor {
     @Override
     public boolean closeField(ByteBuffer mappedBuffer, int startPos) {
     	
-    	tailPosCache = RingBuffer.spinBlockOnTail(tailPosCache, headPosition(ringBuffer)-fill, ringBuffer);
+    	tailPosCache = Pipe.spinBlockOnTail(tailPosCache, headPosition(ringBuffer)-fill, ringBuffer);
     
     	
     	if (startingMessage) {
-    		 offestForTemplateId = RingBuffer.getWorkingHeadPositionObject(ringBuffer).value++; 
+    		 offestForTemplateId = Pipe.getWorkingHeadPositionObject(ringBuffer).value++; 
     	}
     	
     	int fieldType = TypeExtractor.extractType(typeExtractor);        
@@ -195,11 +195,11 @@ public class StreamingVisitor implements ExtractionVisitor {
                 break;
             case TypeExtractor.TYPE_UINT:                
             case TypeExtractor.TYPE_SINT:
-			RingBuffer.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, RingBuffer.getWorkingHeadPositionObject(ringBuffer).value++, (int)(accumValue*accumSign));  
+			Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, (int)(accumValue*accumSign));  
                 break;   
             case TypeExtractor.TYPE_ULONG:
             case TypeExtractor.TYPE_SLONG:
-			RingBuffer.addLongValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, RingBuffer.getWorkingHeadPositionObject(ringBuffer), accumValue*accumSign);  
+			Pipe.addLongValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), accumValue*accumSign);  
                 break;    
             case TypeExtractor.TYPE_ASCII:
             	
@@ -209,17 +209,17 @@ public class StreamingVisitor implements ExtractionVisitor {
             	}
 			int length = bytePosActive-bytePosStartField;            	
             	      
-            	RingBuffer.validateVarLength(ringBuffer, length);
-			RingBuffer.addBytePosAndLen(ringBuffer, bytePosStartField, length);
+            	Pipe.validateVarLength(ringBuffer, length);
+			Pipe.addBytePosAndLen(ringBuffer, bytePosStartField, length);
 			
-			RingBuffer.setBytesWorkingHead(ringBuffer, bytePosStartField + length);
+			Pipe.setBytesWorkingHead(ringBuffer, bytePosStartField + length);
             	
                 break;
             case TypeExtractor.TYPE_BYTES:
 			int length1 = bytePosActive-bytePosStartField; 
-            	RingBuffer.validateVarLength(ringBuffer, length1);
-			RingBuffer.addBytePosAndLen(ringBuffer,  bytePosStartField, length1);
-			RingBuffer.setBytesWorkingHead(ringBuffer, bytePosStartField + length1);
+            	Pipe.validateVarLength(ringBuffer, length1);
+			Pipe.addBytePosAndLen(ringBuffer,  bytePosStartField, length1);
+			Pipe.setBytesWorkingHead(ringBuffer, bytePosStartField + length1);
                 break;
             case TypeExtractor.TYPE_DECIMAL:
             	
@@ -228,7 +228,7 @@ public class StreamingVisitor implements ExtractionVisitor {
                 
 		    	long mantissa = totalValue*accumSign;
 
-			RingBuffer.addValues(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, RingBuffer.getWorkingHeadPositionObject(ringBuffer), exponent, mantissa);  
+			Pipe.addValues(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), exponent, mantissa);  
                 break;
             
             default:
@@ -281,8 +281,8 @@ public class StreamingVisitor implements ExtractionVisitor {
 		RecordFieldExtractor.resetToRecordStart(messageTypes);
     	//if any partial write of field data is in progress just throw it away because 
     	//next frame will begin again from the start of the message.
-    	bytePosStartField = bytePosActive = RingBuffer.bytesHeadPosition(ringBuffer);
-    	RingBuffer.abandonWrites(ringBuffer);
+    	bytePosStartField = bytePosActive = Pipe.bytesHeadPosition(ringBuffer);
+    	Pipe.abandonWrites(ringBuffer);
     	    	
         //get new catalog if is has been changed by the other visitor
         byte[] catBytes = messageTypes.getCatBytes();      
@@ -292,11 +292,11 @@ public class StreamingVisitor implements ExtractionVisitor {
         if (!Arrays.equals(this.catBytes, catBytes)) {
             this.catBytes = catBytes;  //replace old cat bytes so they can be requested      
             
-            if (RingBuffer.from(ringBuffer).fieldNameScript[0].equals("catalog")) {
+            if (Pipe.from(ringBuffer).fieldNameScript[0].equals("catalog")) {
             	System.err.println("Wrote new catalog to stream for hand off"); 
-            	RingBuffer.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, RingBuffer.getWorkingHeadPositionObject(ringBuffer).value++, CATALOG_TEMPLATE_ID);        
-            	RingBuffer.addByteArray(catBytes, 0, catBytes.length, ringBuffer);
-            	RingBuffer.publishWrites(ringBuffer);
+            	Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, CATALOG_TEMPLATE_ID);        
+            	Pipe.addByteArray(catBytes, 0, catBytes.length, ringBuffer);
+            	Pipe.publishWrites(ringBuffer);
             } else {
             	//catalog write not supported
             	System.err.println("NO CAT SUPPORTED");
@@ -317,12 +317,12 @@ public class StreamingVisitor implements ExtractionVisitor {
 		isAlive = false;		
 		
 	    	
-        tailPosCache = RingBuffer.spinBlockOnTail(tailPosCache, headPosition(ringBuffer)-fill, ringBuffer);
+        tailPosCache = Pipe.spinBlockOnTail(tailPosCache, headPosition(ringBuffer)-fill, ringBuffer);
 		//TODO: AAA, need to send shutdown message to the stream
 		//write message id for new stop message?
  //       //RingWriter.writeInt(ringBuffer, -1); //This is an invalid message idx because they are offsets.  
 		
-		RingBuffer.publishWrites(ringBuffer);
+		Pipe.publishWrites(ringBuffer);
 		
 	}
 
@@ -346,7 +346,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 		 
 		byte primaryBits = 11;
 		byte secondaryBits = 24;
-		RingBuffer ringBuffer = new RingBuffer(new RingBufferConfig(primaryBits, secondaryBits, catalog.ringByteConstants(), catalog.getFROM()));
+		Pipe ringBuffer = new Pipe(new PipeConfig(primaryBits, secondaryBits, catalog.ringByteConstants(), catalog.getFROM()));
 				
 		StreamingVisitor streamingVisitor = new StreamingVisitor(loadedSchema, catalog.getTemplateStartIdx() , ringBuffer, typeExtractor);
 				
@@ -454,7 +454,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 
 
 
-	public static StreamingVisitor encodeToFAST(final ByteBuffer sourceByteBuffer, byte[] catBytes,	TemplateCatalogConfig targetCatalog, RingBuffer targetRingBuffer, FASTEncodeStage fes) {
+	public static StreamingVisitor encodeToFAST(final ByteBuffer sourceByteBuffer, byte[] catBytes,	TemplateCatalogConfig targetCatalog, Pipe targetRingBuffer, FASTEncodeStage fes) {
 		
 		 TypeExtractor typeExtractor = new TypeExtractor(true /* force ASCII */);
          RecordFieldExtractor loadedSchema = new RecordFieldExtractor();

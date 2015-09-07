@@ -25,18 +25,18 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.util.Huffman;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.HuffmanTree;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.HuffmanVisitor;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.MurmurHash;
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.schema.generator.CatalogGenerator;
-import com.ociweb.pronghorn.ring.schema.generator.FieldGenerator;
-import com.ociweb.pronghorn.ring.schema.generator.ItemGenerator;
-import com.ociweb.pronghorn.ring.schema.generator.TemplateGenerator;
-import com.ociweb.pronghorn.ring.schema.loader.TemplateHandler;
-import com.ociweb.pronghorn.ring.token.OperatorMask;
-import com.ociweb.pronghorn.ring.token.TokenBuilder;
-import com.ociweb.pronghorn.ring.token.TypeMask;
-import com.ociweb.pronghorn.ring.util.Histogram;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.schema.generator.CatalogGenerator;
+import com.ociweb.pronghorn.pipe.schema.generator.FieldGenerator;
+import com.ociweb.pronghorn.pipe.schema.generator.ItemGenerator;
+import com.ociweb.pronghorn.pipe.schema.generator.TemplateGenerator;
+import com.ociweb.pronghorn.pipe.schema.loader.TemplateHandler;
+import com.ociweb.pronghorn.pipe.token.OperatorMask;
+import com.ociweb.pronghorn.pipe.token.TokenBuilder;
+import com.ociweb.pronghorn.pipe.token.TypeMask;
+import com.ociweb.pronghorn.pipe.util.Histogram;
 
 public class RecordFieldExtractor {
 
@@ -323,14 +323,14 @@ public class RecordFieldExtractor {
 		return dst;
 	}
 
-	public static void appendNewField(RecordFieldExtractor rfe, int type, long toKeep, int optionalFlag, RingBuffer nameBuffer, int loc) {
+	public static void appendNewField(RecordFieldExtractor rfe, int type, long toKeep, int optionalFlag, Pipe nameBuffer, int loc) {
 		//TODO: A, Do something with the name. keep so the name can be re-used for export.
 		
 		//hash this name with the current location.
 		//rfe.fieldCount
-		int pos = RingReader.readBytesPosition(nameBuffer, loc);
-		int len = RingReader.readBytesLength(nameBuffer, loc);
-		byte[] src = RingReader.readBytesBackingArray(nameBuffer, loc);
+		int pos = PipeReader.readBytesPosition(nameBuffer, loc);
+		int len = PipeReader.readBytesLength(nameBuffer, loc);
+		byte[] src = PipeReader.readBytesBackingArray(nameBuffer, loc);
 		
 		//top 32 hash of string, next 16 length of string, last 16 column position
 		long nameHash = ((long)MurmurHash.hash32(src, pos, len, nameBuffer.byteMask, rfe.someSeed))<<32 | (((long)len)<<16) | (long)rfe.fieldCount;
@@ -465,13 +465,13 @@ public class RecordFieldExtractor {
         }
 	}
     
-	public static int moveNextField(RecordFieldExtractor rfe, int type, int optionalFlag, RingBuffer nameBuffer, int loc) {		
+	public static int moveNextField(RecordFieldExtractor rfe, int type, int optionalFlag, Pipe nameBuffer, int loc) {		
 		
 		//hash this name with the current location.
 		//rfe.fieldCount
-		int pos = RingReader.readBytesPosition(nameBuffer, loc);
-		int len = RingReader.readBytesLength(nameBuffer, loc);
-		byte[] src = RingReader.readBytesBackingArray(nameBuffer, loc);
+		int pos = PipeReader.readBytesPosition(nameBuffer, loc);
+		int len = PipeReader.readBytesLength(nameBuffer, loc);
+		byte[] src = PipeReader.readBytesBackingArray(nameBuffer, loc);
 		
 		//top 32 hash of string, next 16 length of string, last 16 column position
 		long nameHash = ((long)MurmurHash.hash32(src, pos, len, nameBuffer.byteMask, rfe.someSeed))<<32 | (((long)len)<<16) | (long)rfe.fieldCount;

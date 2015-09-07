@@ -2,7 +2,7 @@ package com.ociweb.pronghorn.components.ingestion.dynamic.util;
 
 import java.nio.ByteBuffer;
 
-import com.ociweb.pronghorn.ring.util.Histogram;
+import com.ociweb.pronghorn.pipe.util.Histogram;
 
 public class BloomCounter {
 

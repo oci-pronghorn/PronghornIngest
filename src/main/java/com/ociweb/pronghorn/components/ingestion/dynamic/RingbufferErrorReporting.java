@@ -1,13 +1,13 @@
 package com.ociweb.pronghorn.components.ingestion.dynamic;
 
-import com.ociweb.pronghorn.ring.RingBuffer;
+import com.ociweb.pronghorn.pipe.Pipe;
 
 @Deprecated //DELETE BEHAVIOR PROVIDED BY GraphManager
 public class RingbufferErrorReporting {
 
-	final RingBuffer[] rings;
+	final Pipe[] rings;
 	
-	public RingbufferErrorReporting(RingBuffer ... rings) {
+	public RingbufferErrorReporting(Pipe ... rings) {
 		this.rings = rings;
 	}
 	

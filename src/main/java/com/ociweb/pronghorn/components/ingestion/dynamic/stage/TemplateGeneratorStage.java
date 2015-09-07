@@ -9,17 +9,17 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.RecordFieldE
 import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.TypeExtractor;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.MurmurHash;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.stream.AppendableUTF8Ring;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.stream.AppendableUTF8Ring;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
 public class TemplateGeneratorStage extends PronghornStage {
 
-	private final RingBuffer inputRing;
-	private final RingBuffer outputRing;
+	private final Pipe inputRing;
+	private final Pipe outputRing;
 	private final AppendableUTF8Ring output;	
 	private static final Logger log = LoggerFactory.getLogger(TemplateGeneratorStage.class);
 	private final RecordFieldExtractor extractNewSchema = new RecordFieldExtractor();   
@@ -28,17 +28,17 @@ public class TemplateGeneratorStage extends PronghornStage {
 	/*
 	 * Consumes Meta messages and produces new XML templates catalog upon receiving the flush message
 	 */
-	public TemplateGeneratorStage(GraphManager gm, RingBuffer inputRing, RingBuffer outputRing) {
+	public TemplateGeneratorStage(GraphManager gm, Pipe inputRing, Pipe outputRing) {
 		super(gm, inputRing, outputRing);
 		this.inputRing = inputRing;
 		this.outputRing = outputRing;
 		this.output = new AppendableUTF8Ring(outputRing);
 				
-		if (RingBuffer.from(inputRing) !=  MetaMessageDefs.FROM) {
+		if (Pipe.from(inputRing) !=  MetaMessageDefs.FROM) {
 			throw new UnsupportedOperationException("This class can only be used with the MetaFieldFROM catalog of messages for input.");
 		}
 		
-		if (RingBuffer.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
+		if (Pipe.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
 			throw new UnsupportedOperationException("This class can only be used with the very simple RAW_BYTES catalog of messages.");
 		}
 				
@@ -52,8 +52,8 @@ public class TemplateGeneratorStage extends PronghornStage {
 			collectUntilEndOfStream();
 		} catch (Throwable e) {
 			e.printStackTrace();
-			RingBuffer.shutdown(inputRing);
-			RingBuffer.shutdown(outputRing);			
+			Pipe.shutdown(inputRing);
+			Pipe.shutdown(outputRing);			
 		}
 		
 	}
@@ -63,10 +63,10 @@ public class TemplateGeneratorStage extends PronghornStage {
 
 	private void collectUntilEndOfStream() {
 	
-			while (RingReader.tryReadFragment(inputRing)) {
-	        	assert(RingReader.isNewMessage(inputRing)) : "There are no multi fragment message found in the MetaFields";
+			while (PipeReader.tryReadFragment(inputRing)) {
+	        	assert(PipeReader.isNewMessage(inputRing)) : "There are no multi fragment message found in the MetaFields";
 	        	
-	        	int msgLoc = RingReader.getMsgIdx(inputRing);
+	        	int msgLoc = PipeReader.getMsgIdx(inputRing);
 	        		        	
 	        	String name =  MetaMessageDefs.FROM.fieldNameScript[msgLoc];
 	        	int templateId = (int) MetaMessageDefs.FROM.fieldIdScript[msgLoc];	        	
@@ -77,14 +77,14 @@ public class TemplateGeneratorStage extends PronghornStage {
 
 	        		case 0: //UInt32	   
 		        		{
-		        			int uint = RingReader.readInt(inputRing,  MetaMessageDefs.UINT32_VALUE_LOC);
+		        			int uint = PipeReader.readInt(inputRing,  MetaMessageDefs.UINT32_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,uint);
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_UINT, uint, optionalFlag); 	
 		        		}	
 						break;
 	        		case 64: //UInt32 Named	   
 		        		{
-		        			int uint = RingReader.readInt(inputRing, MetaMessageDefs.NAMEDUINT32_VALUE_LOC);
+		        			int uint = PipeReader.readInt(inputRing, MetaMessageDefs.NAMEDUINT32_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,uint);
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_UINT, uint, optionalFlag, inputRing, MetaMessageDefs.NAMEDUINT32_NAME_LOC); 	
 		        		}	
@@ -92,14 +92,14 @@ public class TemplateGeneratorStage extends PronghornStage {
 						
 	        		case 1: //Int32	      
 		        		{
-							int sint = RingReader.readInt(inputRing, MetaMessageDefs.INT32_VALUE_LOC);
+							int sint = PipeReader.readInt(inputRing, MetaMessageDefs.INT32_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,sint);
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_SINT, sint, optionalFlag);
 		        		}
 		        		break;
 	        		case 65: //Int32 Named      
 		        		{
-							int sint = RingReader.readInt(inputRing, MetaMessageDefs.NAMEDINT32_VALUE_LOC);
+							int sint = PipeReader.readInt(inputRing, MetaMessageDefs.NAMEDINT32_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,sint);
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_SINT, sint, optionalFlag, inputRing, MetaMessageDefs.NAMEDINT32_NAME_LOC); 	
 		        		}
@@ -107,14 +107,14 @@ public class TemplateGeneratorStage extends PronghornStage {
 		        		
 	        		case 2: //UInt64
 		        		{
-							long ulong = RingReader.readLong(inputRing, MetaMessageDefs.UINT64_VALUE_LOC);
+							long ulong = PipeReader.readLong(inputRing, MetaMessageDefs.UINT64_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)ulong); //this is OK, its only used to decide on compression style
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_ULONG, ulong, optionalFlag);	
 		        		}
 		        		break;
 	        		case 66: //UInt64 Named
 		        		{
-							long ulong = RingReader.readLong(inputRing, MetaMessageDefs.NAMEDUINT64_VALUE_LOC);
+							long ulong = PipeReader.readLong(inputRing, MetaMessageDefs.NAMEDUINT64_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)ulong); //this is OK, its only used to decide on compression style
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_ULONG, ulong, optionalFlag, inputRing, MetaMessageDefs.NAMEDUINT64_NAME_LOC); 	
 		        		}
@@ -122,14 +122,14 @@ public class TemplateGeneratorStage extends PronghornStage {
 	        				        		
 	        		case 3: //Int64
 		        		{
-							long slong = RingReader.readLong(inputRing, MetaMessageDefs.INT64_VALUE_LOC);
+							long slong = PipeReader.readLong(inputRing, MetaMessageDefs.INT64_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)slong); //this is OK, its only used to decide on compression style
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_SLONG, slong, optionalFlag);
 		        		}
 	        			break;
 	        		case 67: //Int64 Named
 		        		{
-							long slong = RingReader.readLong(inputRing, MetaMessageDefs.NAMEDINT64_VALUE_LOC);
+							long slong = PipeReader.readLong(inputRing, MetaMessageDefs.NAMEDINT64_VALUE_LOC);
 							RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)slong); //this is OK, its only used to decide on compression style
 							RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_SLONG, slong, optionalFlag, inputRing, MetaMessageDefs.NAMEDINT64_NAME_LOC); 
 		        		}
@@ -138,9 +138,9 @@ public class TemplateGeneratorStage extends PronghornStage {
 	        		case 4: //ASCII
 		        		{
 		        			//TODO: C, this has room for improvement but it was quick to write
-		        			int readBytesLength = RingReader.readBytesLength(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
-		        			int readBytesPos    = RingReader.readBytesPosition(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
-		        			byte[] backing      = RingReader.readBytesBackingArray(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+		        			int readBytesLength = PipeReader.readBytesLength(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+		        			int readBytesPos    = PipeReader.readBytesPosition(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+		        			byte[] backing      = PipeReader.readBytesBackingArray(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
 		        			
 		        			RecordFieldExtractor.activeFieldHash(extractNewSchema, MurmurHash.hash32(backing, readBytesPos, readBytesLength, inputRing.byteMask, extractNewSchema.someSeed));
 		        			RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_ASCII, readBytesLength, optionalFlag);        			
@@ -149,9 +149,9 @@ public class TemplateGeneratorStage extends PronghornStage {
 	        		case 68: //ASCII Named
 		        		{
 		        			//TODO: C, this has room for improvement but it was quick to write
-		        			int readBytesLength = RingReader.readBytesLength(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
-		        			int readBytesPos    = RingReader.readBytesPosition(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
-		        			byte[] backing      = RingReader.readBytesBackingArray(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+		        			int readBytesLength = PipeReader.readBytesLength(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+		        			int readBytesPos    = PipeReader.readBytesPosition(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+		        			byte[] backing      = PipeReader.readBytesBackingArray(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
 		        			
 		        			RecordFieldExtractor.activeFieldHash(extractNewSchema, MurmurHash.hash32(backing, readBytesPos, readBytesLength, inputRing.byteMask, extractNewSchema.someSeed));
 		        			RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_ASCII, readBytesLength, optionalFlag, inputRing, MetaMessageDefs.NAMEDASCII_NAME_LOC); 
@@ -161,7 +161,7 @@ public class TemplateGeneratorStage extends PronghornStage {
 	        		case 6: //Decimal
 		        		{
 		        			//TODO: B, this seems short sighted because the exponent may be important.
-		        			long readDecimalMantissa = RingReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
+		        			long readDecimalMantissa = PipeReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
 		        			RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)readDecimalMantissa); //this is OK, its only used to decide on compression style
 						    RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_DECIMAL, readDecimalMantissa, optionalFlag);
 		        		}
@@ -169,7 +169,7 @@ public class TemplateGeneratorStage extends PronghornStage {
 	        		case 70: //Decimal Named
 		        		{
 		        			//TODO: B, this seems short sighted because the exponent may be important.
-		        			long readDecimalMantissa = RingReader.readDecimalMantissa(inputRing, MetaMessageDefs.NAMEDDECIMAL_VALUE_LOC);
+		        			long readDecimalMantissa = PipeReader.readDecimalMantissa(inputRing, MetaMessageDefs.NAMEDDECIMAL_VALUE_LOC);
 		        			RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)readDecimalMantissa); //this is OK, its only used to decide on compression style
 						    RecordFieldExtractor.appendNewField(extractNewSchema, TypeExtractor.TYPE_DECIMAL, readDecimalMantissa, optionalFlag, inputRing, MetaMessageDefs.NAMEDDECIMAL_NAME_LOC); 
 		        		}

@@ -1,18 +1,22 @@
 package com.ociweb.pronghorn.components.ingestion.dynamic.stage;
 
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.stream.StreamingReadVisitor;
-import com.ociweb.pronghorn.ring.stream.StreamingReadVisitorToJSON;
-import com.ociweb.pronghorn.ring.stream.StreamingVisitorReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.stream.StreamingReadVisitor;
+import com.ociweb.pronghorn.pipe.stream.StreamingReadVisitorToJSON;
+import com.ociweb.pronghorn.pipe.stream.StreamingVisitorReader;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
 public class ConsoleDataDumpStage extends PronghornStage {
 
 
-
-	private final RingBuffer input;
+    private static Logger log = LoggerFactory.getLogger(ConsoleDataDumpStage.class);
+    
+	private final Pipe input;
 	
 	private StreamingReadVisitor visitor;
 	private StreamingVisitorReader reader;
@@ -20,7 +24,7 @@ public class ConsoleDataDumpStage extends PronghornStage {
 	private final int maxString;
 	
 	//TODO: AA, move this into the unit tests.
-	public ConsoleDataDumpStage(GraphManager graphManager, RingBuffer input, int maxString) {
+	public ConsoleDataDumpStage(GraphManager graphManager, Pipe input, int maxString) {
 		super(graphManager, input, NONE);
 		this.input = input;
 		this.maxString = maxString;
@@ -32,7 +36,7 @@ public class ConsoleDataDumpStage extends PronghornStage {
 		
 		try{
 			
-			from = RingBuffer.from(input);
+			from = Pipe.from(input);
 			visitor = new StreamingReadVisitorToJSON(System.out) {
 				@Override
 				public void visitASCII(String name, long id, Appendable value) {

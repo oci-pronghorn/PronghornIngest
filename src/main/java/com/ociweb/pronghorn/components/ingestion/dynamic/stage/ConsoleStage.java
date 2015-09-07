@@ -1,22 +1,22 @@
 package com.ociweb.pronghorn.components.ingestion.dynamic.stage;
 
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingReader;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeReader;
 
 public class ConsoleStage implements Runnable {
 
-	private final RingBuffer inputRing;
+	private final Pipe inputRing;
 	private final StringBuilder console = new StringBuilder();
 	private final int posionPillMessageId;
 	
 	
-	public ConsoleStage(RingBuffer inputRing) {
+	public ConsoleStage(Pipe inputRing) {
 		this.inputRing = inputRing;
 		posionPillMessageId = -1;
 	}
 	
-	public ConsoleStage(RingBuffer inputRing, int pillId) {
+	public ConsoleStage(Pipe inputRing, int pillId) {
 		this.inputRing = inputRing;
 		posionPillMessageId = pillId;
 	}
@@ -24,8 +24,8 @@ public class ConsoleStage implements Runnable {
 	@Override
 	public void run() {
 			
-		FieldReferenceOffsetManager from = RingBuffer.from(inputRing);
-		RingBuffer.setReleaseBatchSize(inputRing, 4);
+		FieldReferenceOffsetManager from = Pipe.from(inputRing);
+		Pipe.setReleaseBatchSize(inputRing, 4);
 		
 		long[] totalCounts = new long[from.tokensLen];
 		long[] counts = new long[from.tokensLen];
@@ -43,7 +43,7 @@ public class ConsoleStage implements Runnable {
 			
 		} catch (Throwable t) {
 			t.printStackTrace();
-			RingBuffer.shutdown(inputRing);
+			Pipe.shutdown(inputRing);
 		}
 	}
 
@@ -99,9 +99,9 @@ public class ConsoleStage implements Runnable {
 		
 		int msgIdx = 0;
 		
-		while (RingReader.tryReadFragment(inputRing)) {
-			if (RingReader.isNewMessage(inputRing)) {
-				msgIdx = RingReader.getMsgIdx(inputRing);
+		while (PipeReader.tryReadFragment(inputRing)) {
+			if (PipeReader.isNewMessage(inputRing)) {
+				msgIdx = PipeReader.getMsgIdx(inputRing);
 				if (msgIdx<0) {
 					break;
 				} else {

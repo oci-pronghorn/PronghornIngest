@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.zip.GZIPOutputStream;
 
-import com.ociweb.pronghorn.ring.util.hash.MurmurHash;
+import com.ociweb.pronghorn.pipe.util.hash.MurmurHash;
 
 public class MemberSet {
 

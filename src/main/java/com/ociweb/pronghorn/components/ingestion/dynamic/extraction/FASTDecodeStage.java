@@ -5,24 +5,24 @@ import com.ociweb.jfast.primitive.PrimitiveReader;
 import com.ociweb.jfast.primitive.adapter.FASTInputStream;
 import com.ociweb.jfast.stream.FASTDecoder;
 import com.ociweb.jfast.stream.FASTReaderReactor;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingBuffers;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.stream.RingInputStream;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeBundle;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.stream.RingInputStream;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
 public class FASTDecodeStage extends PronghornStage {
 
-	private RingBuffer inputRing;
-	private RingBuffer outputRing;
+	private Pipe inputRing;
+	private Pipe outputRing;
 	private CatByteProvider cbp;
 
 	private FASTReaderReactor reactor;
 	
 	private long messageCount;
 	
-	public FASTDecodeStage(GraphManager gm, RingBuffer inputRingBuffer, CatByteProvider cbp, RingBuffer outputRingBuffer) {
+	public FASTDecodeStage(GraphManager gm, Pipe inputRingBuffer, CatByteProvider cbp, Pipe outputRingBuffer) {
 		super(gm, inputRingBuffer, outputRingBuffer);
 		this.inputRing  = inputRingBuffer;  // raw byte stream
 		this.outputRing = outputRingBuffer; // structured record stream
@@ -37,8 +37,8 @@ public class FASTDecodeStage extends PronghornStage {
 			}
 		} catch (Throwable t) {	
 			t.printStackTrace();
-			RingBuffer.shutdown(inputRing);
-			RingBuffer.shutdown(outputRing);
+			Pipe.shutdown(inputRing);
+			Pipe.shutdown(outputRing);
 		}
 	}
 	
@@ -49,7 +49,7 @@ public class FASTDecodeStage extends PronghornStage {
 		if (null == fds.reactor) {
 			
 			//as the data is decoded it COULD be written to different ring buffers TODO: this split out function is not used at the moment.
-			RingBuffers rbs = RingBuffers.buildRingBuffers(fds.outputRing);
+			PipeBundle rbs = PipeBundle.buildRingBuffers(fds.outputRing);
 			FASTDecoder readerDispatch;
 			boolean debug = true;
 			if (debug) {
@@ -72,13 +72,13 @@ public class FASTDecodeStage extends PronghornStage {
 	public static boolean decodeUntilRingEmpty(FASTDecodeStage fds) {	
 		
 		FASTReaderReactor reactor = reactor(fds);
-		 RingBuffer rb = reactor.ringBuffers()[0];
+		 Pipe rb = reactor.ringBuffers()[0];
 		
         while (FASTReaderReactor.pump(reactor)>=0) { //continue if there is no room or if a fragment is read.
-            RingReader.tryReadFragment(rb);
+            PipeReader.tryReadFragment(rb);
 
-            if (RingReader.isNewMessage(rb)) {
-                int msgIdx = RingReader.getMsgIdx(rb);
+            if (PipeReader.isNewMessage(rb)) {
+                int msgIdx = PipeReader.getMsgIdx(rb);
                 if (msgIdx<0) {
                 	//push last EOF message
         			

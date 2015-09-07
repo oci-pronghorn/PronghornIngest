@@ -5,8 +5,8 @@ import com.ociweb.jfast.primitive.PrimitiveWriter;
 import com.ociweb.jfast.primitive.adapter.FASTOutputRingBuffer;
 import com.ociweb.jfast.stream.FASTDynamicWriter;
 import com.ociweb.jfast.stream.FASTEncoder;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingReader;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeReader;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
@@ -18,41 +18,38 @@ public class FASTEncodeStage extends PronghornStage {
 	private FASTDynamicWriter dynamicWriter;
 	private PrimitiveWriter writer;
 	
-	private RingBuffer inputRing;
-	private RingBuffer outputRing;
+	private Pipe inputRing;
+	private Pipe outputRing;
 	private CatByteProvider cbp;
+	GraphManager gm;
 
-	public FASTEncodeStage(GraphManager gm, RingBuffer inputRingBuffer, CatByteProvider cbp, RingBuffer outputRingBuffer)  {
+	public FASTEncodeStage(GraphManager gm, Pipe inputRingBuffer, CatByteProvider cbp, Pipe outputRingBuffer)  {
 		super(gm,inputRingBuffer,outputRingBuffer);
 		this.inputRing  = inputRingBuffer;  // structured record stream
 		this.outputRing = outputRingBuffer; // raw byte stream
 		this.cbp = cbp;
+		this.gm = gm;
 		
+		dynamicWriter(this);
 	}
 	
 	public static void encodeUntilRingEmpty(FASTEncodeStage fes) {	
+	    
+	    //NOTE: this stage requires the posion pill in order to shutdown.
+
+	    
 		//Needed for migration to full ring, this will be null when we are using an external thread
 		if (null!=fes) {
 			FASTDynamicWriter dynamicWriter = dynamicWriter(fes);
 
-			   long tmp = RingBuffer.getWorkingHeadPositionObject(fes.inputRing).value & fes.inputRing.mask;
+			   long tmp = Pipe.getWorkingHeadPositionObject(fes.inputRing).value & fes.inputRing.mask;
 			
-				while (RingReader.tryReadFragment(fes.inputRing)) {
+				while (PipeReader.tryReadFragment(fes.inputRing)) {
 				
-					if (RingReader.isNewMessage(fes.inputRing) &&
-						RingReader.getMsgIdx(fes.inputRing)==-1) {	
+					if (PipeReader.isNewMessage(fes.inputRing) &&
+						PipeReader.getMsgIdx(fes.inputRing)==-1) {	
 						
-						PrimitiveWriter.assertAllFlushed(fes.writer);
-						PrimitiveWriter.flush(fes.writer);
-						
-	        			while (!RingBuffer.roomToLowLevelWrite(fes.outputRing, RingBuffer.EOF_SIZE)) {	        				
-	        			}	        			
-	        			RingBuffer.publishEOF(fes.outputRing);
-						
-	        			RingBuffer.setReleaseBatchSize(fes.inputRing, 0);
-	        			RingReader.releaseReadLock(fes.inputRing);	        			
-	        			
-	        			fes.requestShutdown();
+						shutdownProcess(fes);
 						return;
 					}
 					
@@ -60,7 +57,7 @@ public class FASTEncodeStage extends PronghornStage {
 					try {
 						FASTDynamicWriter.write(dynamicWriter);
 					} catch (Throwable t) {
-						System.err.println("pos is:"+ tmp+ " is new msg:"+RingReader.isNewMessage(fes.inputRing)+"  msgIdx:"+RingReader.getMsgIdx(fes.inputRing));
+						System.err.println("pos is:"+ tmp+ " is new msg:"+PipeReader.isNewMessage(fes.inputRing)+"  msgIdx:"+PipeReader.getMsgIdx(fes.inputRing));
 						throw t;
 					}
 					
@@ -70,19 +67,38 @@ public class FASTEncodeStage extends PronghornStage {
 		}
 		return;
 	}
+
+    private static void shutdownProcess(FASTEncodeStage fes) {
+        PrimitiveWriter.assertAllFlushed(fes.writer);
+        PrimitiveWriter.flush(fes.writer);
+        
+        while (!Pipe.roomToLowLevelWrite(fes.outputRing, Pipe.EOF_SIZE)) {	        				
+        }	        			
+        Pipe.publishEOF(fes.outputRing);
+        
+        Pipe.setReleaseBatchSize(fes.inputRing, 0);
+        PipeReader.releaseReadLock(fes.inputRing);	        			
+        
+        fes.requestShutdown();
+    }
 	
 	public static void flush(FASTEncodeStage fes) {	
 		if (null!=fes) {
 			PrimitiveWriter.flush(fes.writer);
 		}
 	}
-
+	
 	@Override
 	public void run() {
 
 		encodeUntilRingEmpty(this);
-		flush(this);	
+		//Does a lot of needless work if we flush here, flush(this);	
 
+	}
+	
+	@Override
+	public void shutdown() {
+	    flush(this);
 	}
 
 
@@ -90,7 +106,7 @@ public class FASTEncodeStage extends PronghornStage {
 		if (null == fes.dynamicWriter) {
 			
 			FASTEncoder writerDispatch;
-			boolean debug = true;
+			boolean debug = false;
 			if (debug) {
 				writerDispatch = DispatchLoader.loadDispatchWriterDebug(fes.cbp.getCatBytes()); 
 			} else {

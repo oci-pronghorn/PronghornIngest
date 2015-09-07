@@ -7,12 +7,12 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.RecordFieldE
 import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.TypeExtractor;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.MurmurHash;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingReader;
-import com.ociweb.pronghorn.ring.token.OperatorMask;
-import com.ociweb.pronghorn.ring.token.TokenBuilder;
-import com.ociweb.pronghorn.ring.token.TypeMask;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.token.OperatorMask;
+import com.ociweb.pronghorn.pipe.token.TokenBuilder;
+import com.ociweb.pronghorn.pipe.token.TypeMask;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
@@ -20,8 +20,8 @@ public class MessageGeneratorStage extends PronghornStage {
 
 	private static final Logger log = LoggerFactory.getLogger(MessageGeneratorStage.class);
 			
-	private final RingBuffer inputRing;
-	private final RingBuffer outputRing;	
+	private final Pipe inputRing;
+	private final Pipe outputRing;	
 	private final RecordFieldExtractor extractNewSchema = new RecordFieldExtractor();   
 	
 	private int messageTemplateIdHash;
@@ -39,17 +39,17 @@ public class MessageGeneratorStage extends PronghornStage {
 	 * @param inputRing
 	 * @param outputRing
 	 */
-	public MessageGeneratorStage(GraphManager gm, RingBuffer inputRing, RingBuffer outputRing) {
+	public MessageGeneratorStage(GraphManager gm, Pipe inputRing, Pipe outputRing) {
 		super(gm,inputRing,outputRing);
 		this.inputRing = inputRing;
 		this.outputRing = outputRing;
 		
-		if (RingBuffer.from(inputRing) != MetaMessageDefs.FROM) {
+		if (Pipe.from(inputRing) != MetaMessageDefs.FROM) {
 			throw new UnsupportedOperationException("This class can only be used with the MetaFieldFROM catalog of messages for input.");
 		}
 
 		//pickup whatever schema that the output ring buffer was initialized with
-		FieldReferenceOffsetManager from = RingBuffer.from(outputRing);
+		FieldReferenceOffsetManager from = Pipe.from(outputRing);
 		extractNewSchema.loadFROM(from);
 		
 		maxFragmentSize = FieldReferenceOffsetManager.maxFragmentSize(from);
@@ -69,11 +69,11 @@ public class MessageGeneratorStage extends PronghornStage {
 	@Override
 	public void run() {
 
-				while (RingReader.tryReadFragment(inputRing)) {			
+				while (PipeReader.tryReadFragment(inputRing)) {			
 	
-					assert(RingReader.isNewMessage(inputRing)) : "There are no multi fragment message found in the MetaFields";
+					assert(PipeReader.isNewMessage(inputRing)) : "There are no multi fragment message found in the MetaFields";
 		        	
-		        	int msgLoc = RingReader.getMsgIdx(inputRing);
+		        	int msgLoc = PipeReader.getMsgIdx(inputRing);
 		        	
 		        	String name = MetaMessageDefs.FROM.fieldNameScript[msgLoc];
 		        	
@@ -89,7 +89,7 @@ public class MessageGeneratorStage extends PronghornStage {
 	
 		        		case 0: //UInt32	   
 			        		{
-			        			int value = RingReader.readInt(inputRing, MetaMessageDefs.UINT32_VALUE_LOC);		        			
+			        			int value = PipeReader.readInt(inputRing, MetaMessageDefs.UINT32_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_UINT, optionalFlag); 	
@@ -99,7 +99,7 @@ public class MessageGeneratorStage extends PronghornStage {
 							break;
 		        		case 64: //UInt32 Named	   
 			        		{
-			        			int value = RingReader.readInt(inputRing, MetaMessageDefs.NAMEDUINT32_VALUE_LOC);
+			        			int value = PipeReader.readInt(inputRing, MetaMessageDefs.NAMEDUINT32_VALUE_LOC);
 			        			builder.setLength(0);
 								RecordFieldExtractor.activeFieldHash(extractNewSchema,value);
 								
@@ -111,7 +111,7 @@ public class MessageGeneratorStage extends PronghornStage {
 							
 		        		case 1: //Int32	      
 			        		{
-			        			int value = RingReader.readInt(inputRing, MetaMessageDefs.INT32_VALUE_LOC);		        			
+			        			int value = PipeReader.readInt(inputRing, MetaMessageDefs.INT32_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_SINT, optionalFlag); 	
@@ -121,7 +121,7 @@ public class MessageGeneratorStage extends PronghornStage {
 			        		break;
 		        		case 65: //Int32 Named      
 			        		{
-			        			int value = RingReader.readInt(inputRing, MetaMessageDefs.NAMEDINT32_VALUE_LOC);		        			
+			        			int value = PipeReader.readInt(inputRing, MetaMessageDefs.NAMEDINT32_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_SINT, optionalFlag,inputRing, MetaMessageDefs.NAMEDINT32_NAME_LOC); 	
@@ -132,7 +132,7 @@ public class MessageGeneratorStage extends PronghornStage {
 			        		
 		        		case 2: //UInt64
 			        		{
-			        			long value = RingReader.readLong(inputRing, MetaMessageDefs.UINT64_VALUE_LOC);		        			
+			        			long value = PipeReader.readLong(inputRing, MetaMessageDefs.UINT64_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_ULONG, optionalFlag); 	
@@ -142,7 +142,7 @@ public class MessageGeneratorStage extends PronghornStage {
 			        		break;
 		        		case 66: //UInt64 Named
 			        		{
-			        			long value = RingReader.readLong(inputRing, MetaMessageDefs.NAMEDUINT64_VALUE_LOC);		        			
+			        			long value = PipeReader.readLong(inputRing, MetaMessageDefs.NAMEDUINT64_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_ULONG, optionalFlag, inputRing, MetaMessageDefs.NAMEDUINT64_NAME_LOC); 	
@@ -153,7 +153,7 @@ public class MessageGeneratorStage extends PronghornStage {
 		        				        		
 		        		case 3: //Int64
 			        		{
-			        			long value = RingReader.readLong(inputRing, MetaMessageDefs.INT64_VALUE_LOC);		        			
+			        			long value = PipeReader.readLong(inputRing, MetaMessageDefs.INT64_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_ULONG, optionalFlag); 	
@@ -163,7 +163,7 @@ public class MessageGeneratorStage extends PronghornStage {
 		        			break;
 		        		case 67: //Int64 Named
 			        		{
-			        			long value = RingReader.readLong(inputRing, MetaMessageDefs.NAMEDINT64_VALUE_LOC);		        			
+			        			long value = PipeReader.readLong(inputRing, MetaMessageDefs.NAMEDINT64_VALUE_LOC);		        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema,(int)value);
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_ULONG, optionalFlag, inputRing, MetaMessageDefs.NAMEDINT64_NAME_LOC); 	
@@ -176,9 +176,9 @@ public class MessageGeneratorStage extends PronghornStage {
 			        		{
 			        			
 			        			//TODO: C, this has room for improvement but it was quick to write
-			        			int readBytesLength = RingReader.readBytesLength(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
-			        			int readBytesPos    = RingReader.readBytesPosition(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
-			        			byte[] backing      = RingReader.readBytesBackingArray(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+			        			int readBytesLength = PipeReader.readBytesLength(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+			        			int readBytesPos    = PipeReader.readBytesPosition(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
+			        			byte[] backing      = PipeReader.readBytesBackingArray(inputRing, MetaMessageDefs.ASCII_VALUE_LOC);
 			        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema, MurmurHash.hash32(backing, readBytesPos, readBytesLength, inputRing.byteMask, extractNewSchema.someSeed));
 			        			
@@ -197,9 +197,9 @@ public class MessageGeneratorStage extends PronghornStage {
 			        		{
 			                	
 			        			//TODO: C, this has room for improvement but it was quick to write
-			        			int readBytesLength = RingReader.readBytesLength(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
-			        			int readBytesPos    = RingReader.readBytesPosition(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
-			        			byte[] backing      = RingReader.readBytesBackingArray(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+			        			int readBytesLength = PipeReader.readBytesLength(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+			        			int readBytesPos    = PipeReader.readBytesPosition(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
+			        			byte[] backing      = PipeReader.readBytesBackingArray(inputRing, MetaMessageDefs.NAMEDASCII_VALUE_LOC);
 			        			
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema, MurmurHash.hash32(backing, readBytesPos, readBytesLength, inputRing.byteMask, extractNewSchema.someSeed));
 			        			
@@ -216,8 +216,8 @@ public class MessageGeneratorStage extends PronghornStage {
 		        			
 		        		case 6: //Decimal
 			        		{
-			        			int readDecimalExponent = RingReader.readDecimalExponent(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
-			        			long readDecimalMantissa = RingReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
+			        			int readDecimalExponent = PipeReader.readDecimalExponent(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
+			        			long readDecimalMantissa = PipeReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)readDecimalMantissa); //this is OK, its only used to decide on compression style
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_DECIMAL, optionalFlag); 	
@@ -227,8 +227,8 @@ public class MessageGeneratorStage extends PronghornStage {
 		        	        break;
 		        		case 70: //Decimal Named
 			        		{
-			        			int readDecimalExponent = RingReader.readDecimalExponent(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
-			        			long readDecimalMantissa = RingReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
+			        			int readDecimalExponent = PipeReader.readDecimalExponent(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
+			        			long readDecimalMantissa = PipeReader.readDecimalMantissa(inputRing, MetaMessageDefs.DECIMAL_VALUE_LOC);
 			        			RecordFieldExtractor.activeFieldHash(extractNewSchema, (int)readDecimalMantissa); //this is OK, its only used to decide on compression style
 			        			
 			        			int type = RecordFieldExtractor.moveNextField(extractNewSchema, TypeExtractor.TYPE_DECIMAL, optionalFlag, inputRing, MetaMessageDefs.NAMEDDECIMAL_NAME_LOC); 	
@@ -247,19 +247,19 @@ public class MessageGeneratorStage extends PronghornStage {
 			        			RecordFieldExtractor.resetToRecordStart(extractNewSchema);   
 			        			
 			        			//no idea how much space we will need for this message so we block for the largest known fragment size
-			        			while (!RingBuffer.roomToLowLevelWrite(outputRing, maxFragmentSize)) {
+			        			while (!Pipe.roomToLowLevelWrite(outputRing, maxFragmentSize)) {
 			        				
 			        			}
 			        			
 						    	if (startingMessage) {
 						    		 //this call only needed because we will be writing the message without knowing the message id until we are done
-						    		 RingBuffer.markBytesWriteBase(outputRing);
-						    		 offestForMsgIdx = RingBuffer.getWorkingHeadPositionObject(outputRing).value++; 
+						    		 Pipe.markBytesWriteBase(outputRing);
+						    		 offestForMsgIdx = Pipe.getWorkingHeadPositionObject(outputRing).value++; 
 						    		 
 						    		 keepOff = offestForMsgIdx;
-						    		 keepHead = RingBuffer.headPosition(outputRing);
+						    		 keepHead = Pipe.headPosition(outputRing);
 						    		 
-						    		 assert(offestForMsgIdx >= RingBuffer.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+RingBuffer.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
+						    		 assert(offestForMsgIdx >= Pipe.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+Pipe.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
 
 						    		 
 						    		 startingMessage = false;
@@ -279,20 +279,20 @@ public class MessageGeneratorStage extends PronghornStage {
 			        			RecordFieldExtractor.resetToRecordStart(extractNewSchema);   
 			        			
 			        			//no idea how much space we will need for this message so we block for the largest known fragment size
-			        			while (!RingBuffer.roomToLowLevelWrite(outputRing, maxFragmentSize)) {
+			        			while (!Pipe.roomToLowLevelWrite(outputRing, maxFragmentSize)) {
 			        				
 			        			}
 			        			
 						    	if (startingMessage) {
 						    		 //this call only needed because we will be writing the message without knowing the message id until we are done
-						    		 RingBuffer.markBytesWriteBase(outputRing);
+						    		 Pipe.markBytesWriteBase(outputRing);
 						    		 
-						    		 offestForMsgIdx = RingBuffer.getWorkingHeadPositionObject(outputRing).value++; 
+						    		 offestForMsgIdx = Pipe.getWorkingHeadPositionObject(outputRing).value++; 
 							    	
 						    		 keepOff = offestForMsgIdx;
-						    		 keepHead = RingBuffer.headPosition(outputRing);
+						    		 keepHead = Pipe.headPosition(outputRing);
 						    		 
-						    		 assert(offestForMsgIdx >= RingBuffer.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+RingBuffer.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
+						    		 assert(offestForMsgIdx >= Pipe.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+Pipe.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
 
 						    		 startingMessage = false;
 						    		 						    		 
@@ -309,23 +309,23 @@ public class MessageGeneratorStage extends PronghornStage {
 		        			
 		        			//will remain -1 if the message id is not used because there is only one template.
 		        			if (offestForMsgIdx>=0) {	
-		        				assert(keepHead == RingBuffer.headPosition(outputRing));
+		        				assert(keepHead == Pipe.headPosition(outputRing));
 		        				assert(keepOff == offestForMsgIdx);
 		        				
-		        				assert(offestForMsgIdx >= RingBuffer.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+RingBuffer.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
+		        				assert(offestForMsgIdx >= Pipe.headPosition(outputRing)) : "head position has moved out in front of the message that has not been defined. PublishedHead:"+Pipe.headPosition(outputRing)+" msgIdxOffset:"+offestForMsgIdx;
 
 		        				//log.warn("new message "+offestForMsgIdx);
 		        				
 		        				int msgIdx = extractNewSchema.messageIdx(messageTemplateIdHash);
 		        				
 		        				//This validation is very important, because all down stream consumers will assume it to be true.
-		        				assert(TypeMask.Group == TokenBuilder.extractType(RingBuffer.from(outputRing).tokens[msgIdx])) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(RingBuffer.from(outputRing).tokens[msgIdx]);
-		        				assert((OperatorMask.Group_Bit_Close&TokenBuilder.extractOper(RingBuffer.from(outputRing).tokens[msgIdx])) == 0) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(RingBuffer.from(outputRing).tokens[msgIdx]);
+		        				assert(TypeMask.Group == TokenBuilder.extractType(Pipe.from(outputRing).tokens[msgIdx])) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(Pipe.from(outputRing).tokens[msgIdx]);
+		        				assert((OperatorMask.Group_Bit_Close&TokenBuilder.extractOper(Pipe.from(outputRing).tokens[msgIdx])) == 0) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(Pipe.from(outputRing).tokens[msgIdx]);
 		 
-		        				RingBuffer.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, offestForMsgIdx, msgIdx);
+		        				Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, offestForMsgIdx, msgIdx);
 		        				
 		        				//only need to set this because we waited until now to know what the message ID was
-		        				RingBuffer.confirmLowLevelWrite(outputRing, RingBuffer.from(outputRing).fragDataSize[msgIdx]);	
+		        				Pipe.confirmLowLevelWrite(outputRing, Pipe.from(outputRing).fragDataSize[msgIdx]);	
 		        						
 		        				
 		        				//log.warn("finished publish of message {} starting at {} ending at {} msgCount:"+messagesCount,msgIdx+" size:"+RingBuffer.from(outputRing).fragDataSize[msgIdx]+" idx "+msgIdx, offestForMsgIdx, outputRing.workingHeadPos.value);
@@ -336,7 +336,7 @@ public class MessageGeneratorStage extends PronghornStage {
 					    	}
 		        			
 		        			
-		        	        RingBuffer.publishWrites(outputRing);
+		        	        Pipe.publishWrites(outputRing);
 		        	        //log.error("pub "+RingBuffer.headPosition(outputRing)+"  "+outputRing.workingHeadPos.value+"  ");
 
 		        	        
@@ -363,20 +363,20 @@ public class MessageGeneratorStage extends PronghornStage {
 		        			
 		        			
 		        		case 31: //flush
-		        		    RingBuffer.setReleaseBatchSize(inputRing, 0);
-		        			RingReader.releaseReadLock(inputRing);
+		        		    Pipe.setReleaseBatchSize(inputRing, 0);
+		        			PipeReader.releaseReadLock(inputRing);
 		        			
 		        			
 //		        			//double check that all messages are closed
 //		        			assert(offestForMsgIdx == -1);
 		        			
 		        			//no idea how much space we will need for this message so we block for the largest known fragment size
-		        			while (!RingBuffer.roomToLowLevelWrite(outputRing, RingBuffer.EOF_SIZE)) {
+		        			while (!Pipe.roomToLowLevelWrite(outputRing, Pipe.EOF_SIZE)) {
 		        				
 		        			}
 		        			
-		        			RingBuffer.publishEOF(outputRing);
-		        			RingBuffer.confirmLowLevelWrite(outputRing, RingBuffer.EOF_SIZE);		        					
+		        			Pipe.publishEOF(outputRing);
+		        			Pipe.confirmLowLevelWrite(outputRing, Pipe.EOF_SIZE);		        					
 		        			
 		//        			if (true) {
 		        				requestShutdown();
@@ -388,7 +388,7 @@ public class MessageGeneratorStage extends PronghornStage {
 		        	
 		        	}
 		        	
-		        	assert(!isInsideMessage || keepHead==RingBuffer.headPosition(outputRing)) : "changed head in field  :"+tSwitch+"  "+keepHead+" vs "+RingBuffer.headPosition(outputRing);
+		        	assert(!isInsideMessage || keepHead==Pipe.headPosition(outputRing)) : "changed head in field  :"+tSwitch+"  "+keepHead+" vs "+Pipe.headPosition(outputRing);
 		        	log.trace("Name:{} {} {}",name,msgLoc,metaMsgTmplId);
 		        	
 			 }
@@ -399,7 +399,7 @@ public class MessageGeneratorStage extends PronghornStage {
 
 
 	//writes null
-	private void writeNull(RingBuffer outputRing, int type) {
+	private void writeNull(Pipe outputRing, int type) {
 		//System.err.println("write NULL:"+type);
 		switch (type) {
 //			case TypeExtractor.TYPE_SINT:
@@ -413,7 +413,7 @@ public class MessageGeneratorStage extends PronghornStage {
 			case TypeExtractor.TYPE_ASCII:
 			case TypeExtractor.TYPE_BYTES:
 			case TypeExtractor.TYPE_NULL:	
-				RingBuffer.addNullByteArray(outputRing);
+				Pipe.addNullByteArray(outputRing);
 				break;
 //			case TypeExtractor.TYPE_DECIMAL:
 //				RingWriter.writeDecimal(outputRing, 
@@ -426,16 +426,16 @@ public class MessageGeneratorStage extends PronghornStage {
 		}
 	}
 
-	private void writeDecimal(RingBuffer outputRing, int type, int readDecimalExponent, long readDecimalMantissa) {
+	private void writeDecimal(Pipe outputRing, int type, int readDecimalExponent, long readDecimalMantissa) {
 		//System.err.println("write bytes decimal:"+readDecimalMantissa);
 		switch (type) {
 			case TypeExtractor.TYPE_DECIMAL:
-			RingBuffer.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), readDecimalExponent, readDecimalMantissa);
+			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), readDecimalExponent, readDecimalMantissa);
 			break;
 			
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			RingBuffer.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), (long) Math.rint(readDecimalMantissa * RingReader.powfi[64 + readDecimalExponent]));
+			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) Math.rint(readDecimalMantissa * PipeReader.powfi[64 + readDecimalExponent]));
 			break;
 			case TypeExtractor.TYPE_ASCII:
 								
@@ -448,7 +448,7 @@ public class MessageGeneratorStage extends PronghornStage {
 		}	
 	}
 
-	private void writeBytes(RingBuffer outputRing, int type, byte[] backing, int readBytesPos, int readBytesLength, int byteMask) {
+	private void writeBytes(Pipe outputRing, int type, byte[] backing, int readBytesPos, int readBytesLength, int byteMask) {
 		
 		
 		
@@ -464,18 +464,18 @@ public class MessageGeneratorStage extends PronghornStage {
 				
 				int length1 = 1+byteMask-(byteMask&readBytesPos);
 				if (length1>=readBytesLength) {
-					RingBuffer.addByteArray(backing, byteMask&readBytesPos, readBytesLength, outputRing);				
+					Pipe.addByteArray(backing, byteMask&readBytesPos, readBytesLength, outputRing);				
 				} else {
 					//System.err.println("write rollover for ascii");
 					
-					RingBuffer.validateVarLength(outputRing, readBytesLength);
+					Pipe.validateVarLength(outputRing, readBytesLength);
 					//write from two places into new ring buffer but it must be only 1 field
-					int pos = RingBuffer.bytesWorkingHeadPosition(outputRing);
-					RingBuffer.copyBytesFromToRing(backing, byteMask&readBytesPos, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos, outputRing.byteMask, length1);
-					RingBuffer.copyBytesFromToRing(backing, 0, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos+length1, outputRing.byteMask, readBytesLength-length1);
-					RingBuffer.addBytePosAndLen(outputRing, pos, readBytesLength);
+					int pos = Pipe.bytesWorkingHeadPosition(outputRing);
+					Pipe.copyBytesFromToRing(backing, byteMask&readBytesPos, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos, outputRing.byteMask, length1);
+					Pipe.copyBytesFromToRing(backing, 0, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos+length1, outputRing.byteMask, readBytesLength-length1);
+					Pipe.addBytePosAndLen(outputRing, pos, readBytesLength);
 					
-					RingBuffer.setBytesWorkingHead(outputRing,pos + readBytesLength);
+					Pipe.setBytesWorkingHead(outputRing,pos + readBytesLength);
 				}
 				break;
 			case TypeExtractor.TYPE_DECIMAL:
@@ -493,23 +493,23 @@ public class MessageGeneratorStage extends PronghornStage {
 		}
 	}
 	
-	private static void writeInt(RingBuffer outputRing, int type, int value) {
+	private static void writeInt(Pipe outputRing, int type, int value) {
 		//System.err.println("write int:"+value);
 		switch (type) {
 			case TypeExtractor.TYPE_SINT:
 			case TypeExtractor.TYPE_UINT:
-			RingBuffer.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing).value++, value);
+			Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, value);
 			break;
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			RingBuffer.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), (long) value);
+			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) value);
 			break;
 			case TypeExtractor.TYPE_ASCII:
 			case TypeExtractor.TYPE_BYTES:	
-			RingBuffer.addIntAsASCII(outputRing, value);
+			Pipe.addIntAsASCII(outputRing, value);
 			break;
 			case TypeExtractor.TYPE_DECIMAL:
-			RingBuffer.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), 0, (long) value);
+			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, (long) value);
 			break;
 			default:
 					throw new UnsupportedOperationException("TODO still need to implement all the types, missing "+type);
@@ -518,23 +518,23 @@ public class MessageGeneratorStage extends PronghornStage {
 		}		
 	}
 
-	private static void writeLong(RingBuffer outputRing, int type, long value) {
+	private static void writeLong(Pipe outputRing, int type, long value) {
 		//System.err.println("write long:"+value);
 		switch (type) {
 			case TypeExtractor.TYPE_SINT:
 			case TypeExtractor.TYPE_UINT:
-			RingBuffer.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing).value++, (int)value);
+			Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, (int)value);
 			break;
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			RingBuffer.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), value);
+			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), value);
 			break;
 			case TypeExtractor.TYPE_ASCII:
 			case TypeExtractor.TYPE_BYTES:	
-			RingBuffer.addLongAsASCII(outputRing, value);
+			Pipe.addLongAsASCII(outputRing, value);
 			break;			
 			case TypeExtractor.TYPE_DECIMAL:
-			RingBuffer.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, RingBuffer.getWorkingHeadPositionObject(outputRing), 0, value);
+			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, value);
 			break;
 			default:
 					throw new UnsupportedOperationException("TODO still need to implement all the types, missing "+type);

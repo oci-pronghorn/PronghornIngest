@@ -12,21 +12,21 @@ import java.nio.channels.FileChannel;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.ociweb.pronghorn.ring.FieldReferenceOffsetManager;
-import com.ociweb.pronghorn.ring.RingBuffer;
-import com.ociweb.pronghorn.ring.RingBufferConfig;
+import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.PipeConfig;
 
 
 public class FileLoadParseTest {
 
 	File testFile;
-    RingBuffer rb;
+    Pipe rb;
 	
 	
 	@Before
 	public void createTestFile() {
 				
-		rb = new RingBuffer(new RingBufferConfig((byte)21, (byte)7, null, FieldReferenceOffsetManager.RAW_BYTES));
+		rb = new Pipe(new PipeConfig((byte)21, (byte)7, null, FieldReferenceOffsetManager.RAW_BYTES));
 		rb.initBuffers();
 		try {
 			
@@ -123,7 +123,7 @@ public class FileLoadParseTest {
 
             int pos = 0;
             
-            RingBuffer.setValue(rb.structuredLayoutRingBuffer, rb.mask, RingBuffer.getWorkingHeadPositionObject(rb).value++, pos);
+            Pipe.setValue(rb.structuredLayoutRingBuffer, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
             
             int tokenCount = 0;
             int c =0;
@@ -149,10 +149,10 @@ public class FileLoadParseTest {
             	//	allTheBits++; //do something
             		
             		pos = mappedBuffer.position();
-            		RingBuffer.setValue(rb.structuredLayoutRingBuffer, rb.mask, RingBuffer.getWorkingHeadPositionObject(rb).value++, pos);
+            		Pipe.setValue(rb.structuredLayoutRingBuffer, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
             		
             		if ((++tokenCount&0xF)==0) {
-            			RingBuffer.publishWrites(rb);
+            			Pipe.publishWrites(rb);
  
             		}
             		
