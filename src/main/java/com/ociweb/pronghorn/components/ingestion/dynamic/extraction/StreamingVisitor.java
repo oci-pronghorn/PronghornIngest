@@ -108,7 +108,7 @@ public class StreamingVisitor implements ExtractionVisitor {
         while (p<limit) {
             byte b = mappedBuffer.get(p);
             //May be ASCII or Bytes, we trust the FAST encoder to stip out any high bits if its the wrong encoding.
-            ringBuffer.unstructuredLayoutRingBuffer[ringBuffer.byteMask&bytePosActive++] = (byte)b;
+            ringBuffer.blobRing[ringBuffer.byteMask&bytePosActive++] = (byte)b;
           //  temp.append((char)b);
                         
             if ('.' == b) {
@@ -144,7 +144,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 	    	try {
 	    		int msgIdx = messageTypes.messageIdx(messageTemplateIdHash);
 	    		
-	    		Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, offestForTemplateId, msgIdx);
+	    		Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, offestForTemplateId, msgIdx);
 	    	} catch (Throwable t) {
 	    		System.err.println(lastClosedLine);
 	    		t.printStackTrace();
@@ -195,11 +195,11 @@ public class StreamingVisitor implements ExtractionVisitor {
                 break;
             case TypeExtractor.TYPE_UINT:                
             case TypeExtractor.TYPE_SINT:
-			Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, (int)(accumValue*accumSign));  
+			Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, (int)(accumValue*accumSign));  
                 break;   
             case TypeExtractor.TYPE_ULONG:
             case TypeExtractor.TYPE_SLONG:
-			Pipe.addLongValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), accumValue*accumSign);  
+			Pipe.addLongValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), accumValue*accumSign);  
                 break;    
             case TypeExtractor.TYPE_ASCII:
             	
@@ -228,7 +228,7 @@ public class StreamingVisitor implements ExtractionVisitor {
                 
 		    	long mantissa = totalValue*accumSign;
 
-			Pipe.addValues(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), exponent, mantissa);  
+			Pipe.addValues(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), exponent, mantissa);  
                 break;
             
             default:
@@ -294,7 +294,7 @@ public class StreamingVisitor implements ExtractionVisitor {
             
             if (Pipe.from(ringBuffer).fieldNameScript[0].equals("catalog")) {
             	System.err.println("Wrote new catalog to stream for hand off"); 
-            	Pipe.setValue(ringBuffer.structuredLayoutRingBuffer, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, CATALOG_TEMPLATE_ID);        
+            	Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, CATALOG_TEMPLATE_ID);        
             	Pipe.addByteArray(catBytes, 0, catBytes.length, ringBuffer);
             	Pipe.publishWrites(ringBuffer);
             } else {

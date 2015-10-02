@@ -121,8 +121,8 @@ public class SimpleParseTest {
 		linesRing.initBuffers();
 		
 		//start near the end to force the rollover to happen.
-		long start = linesRing.sizeOfStructuredLayoutRingBuffer-15;
-		int startBytes = linesRing.sizeOfUntructuredLayoutRingBuffer-15;
+		long start = linesRing.sizeOfSlabRing-15;
+		int startBytes = linesRing.sizeOfBlobRing-15;
 		linesRing.reset((int)start,startBytes);			
 		
 		GraphManager gm = new GraphManager();

@@ -322,7 +322,7 @@ public class MessageGeneratorStage extends PronghornStage {
 		        				assert(TypeMask.Group == TokenBuilder.extractType(Pipe.from(outputRing).tokens[msgIdx])) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(Pipe.from(outputRing).tokens[msgIdx]);
 		        				assert((OperatorMask.Group_Bit_Close&TokenBuilder.extractOper(Pipe.from(outputRing).tokens[msgIdx])) == 0) : "Templated message must start with group open and this starts with "+TokenBuilder.tokenToString(Pipe.from(outputRing).tokens[msgIdx]);
 		 
-		        				Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, offestForMsgIdx, msgIdx);
+		        				Pipe.setValue(outputRing.slabRing, outputRing.mask, offestForMsgIdx, msgIdx);
 		        				
 		        				//only need to set this because we waited until now to know what the message ID was
 		        				Pipe.confirmLowLevelWrite(outputRing, Pipe.from(outputRing).fragDataSize[msgIdx]);	
@@ -430,12 +430,12 @@ public class MessageGeneratorStage extends PronghornStage {
 		//System.err.println("write bytes decimal:"+readDecimalMantissa);
 		switch (type) {
 			case TypeExtractor.TYPE_DECIMAL:
-			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), readDecimalExponent, readDecimalMantissa);
+			Pipe.addValues(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), readDecimalExponent, readDecimalMantissa);
 			break;
 			
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) Math.rint(readDecimalMantissa * PipeReader.powfi[64 + readDecimalExponent]));
+			Pipe.addLongValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) Math.rint(readDecimalMantissa * PipeReader.powfi[64 + readDecimalExponent]));
 			break;
 			case TypeExtractor.TYPE_ASCII:
 								
@@ -471,8 +471,8 @@ public class MessageGeneratorStage extends PronghornStage {
 					Pipe.validateVarLength(outputRing, readBytesLength);
 					//write from two places into new ring buffer but it must be only 1 field
 					int pos = Pipe.bytesWorkingHeadPosition(outputRing);
-					Pipe.copyBytesFromToRing(backing, byteMask&readBytesPos, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos, outputRing.byteMask, length1);
-					Pipe.copyBytesFromToRing(backing, 0, Integer.MAX_VALUE, outputRing.unstructuredLayoutRingBuffer, pos+length1, outputRing.byteMask, readBytesLength-length1);
+					Pipe.copyBytesFromToRing(backing, byteMask&readBytesPos, Integer.MAX_VALUE, outputRing.blobRing, pos, outputRing.byteMask, length1);
+					Pipe.copyBytesFromToRing(backing, 0, Integer.MAX_VALUE, outputRing.blobRing, pos+length1, outputRing.byteMask, readBytesLength-length1);
 					Pipe.addBytePosAndLen(outputRing, pos, readBytesLength);
 					
 					Pipe.setBytesWorkingHead(outputRing,pos + readBytesLength);
@@ -498,18 +498,18 @@ public class MessageGeneratorStage extends PronghornStage {
 		switch (type) {
 			case TypeExtractor.TYPE_SINT:
 			case TypeExtractor.TYPE_UINT:
-			Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, value);
+			Pipe.setValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, value);
 			break;
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) value);
+			Pipe.addLongValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), (long) value);
 			break;
 			case TypeExtractor.TYPE_ASCII:
 			case TypeExtractor.TYPE_BYTES:	
 			Pipe.addIntAsASCII(outputRing, value);
 			break;
 			case TypeExtractor.TYPE_DECIMAL:
-			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, (long) value);
+			Pipe.addValues(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, (long) value);
 			break;
 			default:
 					throw new UnsupportedOperationException("TODO still need to implement all the types, missing "+type);
@@ -523,18 +523,18 @@ public class MessageGeneratorStage extends PronghornStage {
 		switch (type) {
 			case TypeExtractor.TYPE_SINT:
 			case TypeExtractor.TYPE_UINT:
-			Pipe.setValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, (int)value);
+			Pipe.setValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, (int)value);
 			break;
 			case TypeExtractor.TYPE_SLONG:
 			case TypeExtractor.TYPE_ULONG:
-			Pipe.addLongValue(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), value);
+			Pipe.addLongValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), value);
 			break;
 			case TypeExtractor.TYPE_ASCII:
 			case TypeExtractor.TYPE_BYTES:	
 			Pipe.addLongAsASCII(outputRing, value);
 			break;			
 			case TypeExtractor.TYPE_DECIMAL:
-			Pipe.addValues(outputRing.structuredLayoutRingBuffer, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, value);
+			Pipe.addValues(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing), 0, value);
 			break;
 			default:
 					throw new UnsupportedOperationException("TODO still need to implement all the types, missing "+type);

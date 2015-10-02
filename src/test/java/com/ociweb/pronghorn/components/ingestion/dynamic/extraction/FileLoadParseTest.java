@@ -123,7 +123,7 @@ public class FileLoadParseTest {
 
             int pos = 0;
             
-            Pipe.setValue(rb.structuredLayoutRingBuffer, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
+            Pipe.setValue(rb.slabRing, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
             
             int tokenCount = 0;
             int c =0;
@@ -149,7 +149,7 @@ public class FileLoadParseTest {
             	//	allTheBits++; //do something
             		
             		pos = mappedBuffer.position();
-            		Pipe.setValue(rb.structuredLayoutRingBuffer, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
+            		Pipe.setValue(rb.slabRing, rb.mask, Pipe.getWorkingHeadPositionObject(rb).value++, pos);
             		
             		if ((++tokenCount&0xF)==0) {
             			Pipe.publishWrites(rb);
