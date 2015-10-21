@@ -86,7 +86,7 @@ public class ReadByteBufferStage implements Runnable {
 
 		Pipe outputRing = lss.outputRing;
 		//send end of file message
-		Pipe.setValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, -1);
+		Pipe.addIntValue(-1, outputRing);
 		Pipe.addNullByteArray(outputRing);
 		Pipe.publishWrites(outputRing);
 		
@@ -113,7 +113,7 @@ public class ReadByteBufferStage implements Runnable {
 						lss.tailPosCache = spinBlockOnTail(lss.tailPosCache, lss.targetValue, outputRing);
 						lss.targetValue+=lss.stepSize;
 						
-						Pipe.setValue(outputRing.slabRing, outputRing.mask, Pipe.getWorkingHeadPositionObject(outputRing).value++, 0);
+						Pipe.addIntValue(0, outputRing);
 						assert(len>=0);
 						int bytePos = Pipe.bytesWorkingHeadPosition(outputRing);
 						

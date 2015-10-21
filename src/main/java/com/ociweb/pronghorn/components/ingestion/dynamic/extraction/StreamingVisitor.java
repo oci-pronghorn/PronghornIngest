@@ -144,7 +144,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 	    	try {
 	    		int msgIdx = messageTypes.messageIdx(messageTemplateIdHash);
 	    		
-	    		Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, offestForTemplateId, msgIdx);
+	    		Pipe.addMsgIdx(ringBuffer, msgIdx);
 	    	} catch (Throwable t) {
 	    		System.err.println(lastClosedLine);
 	    		t.printStackTrace();
@@ -194,12 +194,12 @@ public class StreamingVisitor implements ExtractionVisitor {
                 
                 break;
             case TypeExtractor.TYPE_UINT:                
-            case TypeExtractor.TYPE_SINT:
-			Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, (int)(accumValue*accumSign));  
+            case TypeExtractor.TYPE_SINT:                
+			Pipe.addIntValue((int)(accumValue*accumSign), ringBuffer);  
                 break;   
             case TypeExtractor.TYPE_ULONG:
             case TypeExtractor.TYPE_SLONG:
-			Pipe.addLongValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), accumValue*accumSign);  
+			Pipe.addLongValue(accumValue*accumSign, ringBuffer);  
                 break;    
             case TypeExtractor.TYPE_ASCII:
             	
@@ -228,7 +228,7 @@ public class StreamingVisitor implements ExtractionVisitor {
                 
 		    	long mantissa = totalValue*accumSign;
 
-			Pipe.addValues(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer), exponent, mantissa);  
+			Pipe.addDecimal(exponent, mantissa, ringBuffer);  
                 break;
             
             default:
@@ -294,7 +294,7 @@ public class StreamingVisitor implements ExtractionVisitor {
             
             if (Pipe.from(ringBuffer).fieldNameScript[0].equals("catalog")) {
             	System.err.println("Wrote new catalog to stream for hand off"); 
-            	Pipe.setValue(ringBuffer.slabRing, ringBuffer.mask, Pipe.getWorkingHeadPositionObject(ringBuffer).value++, CATALOG_TEMPLATE_ID);        
+            	Pipe.addIntValue(CATALOG_TEMPLATE_ID, ringBuffer);        
             	Pipe.addByteArray(catBytes, 0, catBytes.length, ringBuffer);
             	Pipe.publishWrites(ringBuffer);
             } else {
