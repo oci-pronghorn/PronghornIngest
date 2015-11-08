@@ -15,6 +15,7 @@ import org.junit.Test;
 import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
 import com.ociweb.pronghorn.pipe.Pipe;
 import com.ociweb.pronghorn.pipe.PipeConfig;
+import com.ociweb.pronghorn.pipe.RawDataSchema;
 
 
 public class FileLoadParseTest {
@@ -26,7 +27,7 @@ public class FileLoadParseTest {
 	@Before
 	public void createTestFile() {
 				
-		rb = new Pipe(new PipeConfig((byte)21, (byte)7, null, FieldReferenceOffsetManager.RAW_BYTES));
+		rb = new Pipe(new PipeConfig((byte)21, (byte)7, null, RawDataSchema.instance));
 		rb.initBuffers();
 		try {
 			

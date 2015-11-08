@@ -11,7 +11,7 @@ import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
 
-//TODO: once this works move it to the jFAST project it does not belong here.
+@Deprecated //found in another project both newer and better
 public class FASTEncodeStage extends PronghornStage {
 	
 	private final int WRITE_BUFFER_SIZE = 4095; //No single fragment can be bigger than this

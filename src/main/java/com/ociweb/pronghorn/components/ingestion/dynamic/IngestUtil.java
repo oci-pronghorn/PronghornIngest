@@ -35,10 +35,12 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.stage.TemplateGenerator
 import com.ociweb.pronghorn.components.ingestion.file.FileWriteStage;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
 import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
+import com.ociweb.pronghorn.pipe.MessageSchemaDynamic;
 import com.ociweb.pronghorn.pipe.Pipe;
 import com.ociweb.pronghorn.pipe.PipeConfig;
 import com.ociweb.pronghorn.pipe.PipeBundle;
 import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.RawDataSchema;
 import com.ociweb.pronghorn.pipe.token.TokenBuilder;
 import com.ociweb.pronghorn.pipe.token.TypeMask;
 import com.ociweb.pronghorn.stage.PronghornStage;
@@ -69,9 +71,9 @@ public class IngestUtil {
 	private static final String VALUE_DECODE = "decode";
     private static Logger log = LoggerFactory.getLogger(IngestUtil.class);
 	
-	private static PipeConfig linesRingConfig = new PipeConfig((byte)12,(byte)21,null, FieldReferenceOffsetManager.RAW_BYTES);
-	private static PipeConfig fieldsRingConfig = new PipeConfig((byte)10,(byte)19,null,  MetaMessageDefs.FROM);
-	private static PipeConfig flatFileRingConfig = new PipeConfig(FieldReferenceOffsetManager.RAW_BYTES, 1000, 4096);
+	private static PipeConfig linesRingConfig = new PipeConfig((byte)12,(byte)21, null, RawDataSchema.instance);
+	private static PipeConfig fieldsRingConfig = new PipeConfig((byte)10,(byte)19, null,   new MessageSchemaDynamic(MetaMessageDefs.FROM));
+	private static PipeConfig flatFileRingConfig = new PipeConfig( RawDataSchema.instance, 1000, 4096);
 	
 	
     public static void main(String[] args) {        
@@ -232,9 +234,9 @@ public class IngestUtil {
 		 TemplateCatalogConfig catalog = new TemplateCatalogConfig(catBytes);
 		 FieldReferenceOffsetManager customFrom = catalog.getFROM();
 		 
-		 PipeConfig fastBytesRingConfig = new PipeConfig((byte)4,(byte)20,null, FieldReferenceOffsetManager.RAW_BYTES);
-		 PipeConfig customRingConfig = new PipeConfig((byte)16,(byte)25,null, customFrom);
-		 PipeConfig csvFileRingConfig = new PipeConfig((byte)16,(byte)25,null, FieldReferenceOffsetManager.RAW_BYTES);
+		 PipeConfig fastBytesRingConfig = new PipeConfig((byte)4,(byte)20,null,  RawDataSchema.instance);
+		 PipeConfig customRingConfig = new PipeConfig((byte)16,(byte)25,null,  new MessageSchemaDynamic(customFrom));
+		 PipeConfig csvFileRingConfig = new PipeConfig((byte)16,(byte)25,null,  RawDataSchema.instance);
 		 		
 		 Pipe fastBytesRing = new Pipe(fastBytesRingConfig);
 		 Pipe customRing = new Pipe(customRingConfig);
@@ -394,7 +396,7 @@ public class IngestUtil {
 		 
 		 try {
 
-			 PipeConfig customRingConfig = new PipeConfig(customFrom, 20, 64);
+			 PipeConfig customRingConfig = new PipeConfig( new MessageSchemaDynamic(customFrom), 20, 64);
 			 
 			 //input test data		
 			FileChannel fileChannel = new RandomAccessFile(csvFile, "r").getChannel();     

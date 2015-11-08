@@ -12,6 +12,7 @@ import com.ociweb.pronghorn.pipe.stream.RingInputStream;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
 
+@Deprecated //found in another project both newer and better
 public class FASTDecodeStage extends PronghornStage {
 
 	private Pipe inputRing;

@@ -11,6 +11,7 @@ import java.util.Arrays;
 
 import com.ociweb.jfast.catalog.loader.TemplateCatalogConfig;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.BloomCounter;
+import com.ociweb.pronghorn.pipe.MessageSchemaDynamic;
 import com.ociweb.pronghorn.pipe.Pipe;
 import com.ociweb.pronghorn.pipe.PipeConfig;
 import com.ociweb.pronghorn.pipe.util.hash.LongHashTable;
@@ -346,7 +347,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 		 
 		byte primaryBits = 11;
 		byte secondaryBits = 24;
-		Pipe ringBuffer = new Pipe(new PipeConfig(primaryBits, secondaryBits, catalog.ringByteConstants(), catalog.getFROM()));
+		Pipe ringBuffer = new Pipe(new PipeConfig(primaryBits, secondaryBits, catalog.ringByteConstants(), new MessageSchemaDynamic(catalog.getFROM())));
 				
 		StreamingVisitor streamingVisitor = new StreamingVisitor(loadedSchema, catalog.getTemplateStartIdx() , ringBuffer, typeExtractor);
 				
