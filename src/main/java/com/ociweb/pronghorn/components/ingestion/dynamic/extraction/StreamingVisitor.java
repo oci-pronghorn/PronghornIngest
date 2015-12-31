@@ -282,7 +282,7 @@ public class StreamingVisitor implements ExtractionVisitor {
 		RecordFieldExtractor.resetToRecordStart(messageTypes);
     	//if any partial write of field data is in progress just throw it away because 
     	//next frame will begin again from the start of the message.
-    	bytePosStartField = bytePosActive = Pipe.bytesHeadPosition(ringBuffer);
+    	bytePosStartField = bytePosActive = Pipe.getBlobRingHeadPosition( ringBuffer);
     	Pipe.abandonWrites(ringBuffer);
     	    	
         //get new catalog if is has been changed by the other visitor

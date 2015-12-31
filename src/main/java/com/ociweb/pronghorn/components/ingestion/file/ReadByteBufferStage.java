@@ -5,8 +5,8 @@ import static com.ociweb.pronghorn.pipe.Pipe.tailPosition;
 
 import java.nio.ByteBuffer;
 
-import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
 import com.ociweb.pronghorn.pipe.Pipe;
+import com.ociweb.pronghorn.pipe.RawDataSchema;
 
 /**
  * 
@@ -36,11 +36,11 @@ public class ReadByteBufferStage implements Runnable {
     	
     	this.outputRing=outputRing;
     	
-		if (Pipe.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
+		if (Pipe.from(outputRing) != RawDataSchema.FROM) {
 			throw new UnsupportedOperationException("This class can only be used with the very simple RAW_BYTES catalog of messages.");
 		}
 		
-		stepSize = FieldReferenceOffsetManager.RAW_BYTES.fragDataSize[0];
+		stepSize = RawDataSchema.FROM.fragDataSize[0];
 		publishCountDownInit = ((outputRing.mask+1)/stepSize)>>1;//count down to only half what the ring can hold
 		publishCountDown = publishCountDownInit;
 		

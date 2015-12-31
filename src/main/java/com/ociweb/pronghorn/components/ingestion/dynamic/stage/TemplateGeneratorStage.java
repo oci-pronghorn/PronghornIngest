@@ -9,9 +9,9 @@ import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.RecordFieldE
 import com.ociweb.pronghorn.components.ingestion.dynamic.extraction.TypeExtractor;
 import com.ociweb.pronghorn.components.ingestion.dynamic.util.MurmurHash;
 import com.ociweb.pronghorn.components.ingestion.metaMessageUtil.MetaMessageDefs;
-import com.ociweb.pronghorn.pipe.FieldReferenceOffsetManager;
 import com.ociweb.pronghorn.pipe.Pipe;
 import com.ociweb.pronghorn.pipe.PipeReader;
+import com.ociweb.pronghorn.pipe.RawDataSchema;
 import com.ociweb.pronghorn.pipe.stream.AppendableUTF8Ring;
 import com.ociweb.pronghorn.stage.PronghornStage;
 import com.ociweb.pronghorn.stage.scheduling.GraphManager;
@@ -38,7 +38,7 @@ public class TemplateGeneratorStage extends PronghornStage {
 			throw new UnsupportedOperationException("This class can only be used with the MetaFieldFROM catalog of messages for input.");
 		}
 		
-		if (Pipe.from(outputRing) != FieldReferenceOffsetManager.RAW_BYTES) {
+		if (Pipe.from(outputRing) != RawDataSchema.FROM) {
 			throw new UnsupportedOperationException("This class can only be used with the very simple RAW_BYTES catalog of messages.");
 		}
 				
